@@ -1,0 +1,175 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // ----------------------------------------------------------------
+    // Helper Functions
+    // ----------------------------------------------------------------
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function getUserRole() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role;
+    }
+
+    function isRecruiter() {
+      return isAuthenticated() && getUserRole() == 'recruiter';
+    }
+
+    function isGovernment() {
+      return isAuthenticated() && getUserRole() == 'government';
+    }
+
+    function isIssuer() {
+      return isAuthenticated() && getUserRole() == 'issuer';
+    }
+
+    function isStudent() {
+      return isAuthenticated() && getUserRole() == 'student';
+    }
+
+    // ----------------------------------------------------------------
+    // Users Collection
+    // Users can only read/write their own document.
+    // ----------------------------------------------------------------
+    match /users/{userId} {
+      allow read, write: if isAuthenticated() && request.auth.uid == userId;
+    }
+
+    // ----------------------------------------------------------------
+    // Students Collection
+    // Students can read/write own profile.
+    // Recruiters and Government can read individual student profiles.
+    // ----------------------------------------------------------------
+    match /students/{studentId} {
+      allow get: if isAuthenticated() && (
+        request.auth.uid == studentId || isRecruiter() || isGovernment()
+      );
+      allow list: if isAuthenticated() && (isRecruiter() || isGovernment());
+      allow write: if isAuthenticated() && request.auth.uid == studentId;
+
+      // Trust History — Read-only for student/recruiter/gov; server-only writes
+      match /trust_history/{historyId} {
+        allow read: if isAuthenticated() && (
+          request.auth.uid == studentId || isRecruiter() || isGovernment()
+        );
+        allow write: if false;
+      }
+
+      // Fraud Reports — Read-only for recruiter/gov; server-only writes
+      match /fraud_reports/{reportId} {
+        allow read: if isAuthenticated() && (isRecruiter() || isGovernment());
+        allow write: if false;
+      }
+    }
+
+    // ----------------------------------------------------------------
+    // Academic Records
+    // Students own records where studentId == their uid.
+    // Recruiters and Government can read.
+    // ----------------------------------------------------------------
+    match /academic_records/{recordId} {
+      allow create: if isAuthenticated() &&
+        request.resource.data.studentId == request.auth.uid;
+      allow update: if isAuthenticated() &&
+        resource.data.studentId == request.auth.uid &&
+        request.resource.data.studentId == request.auth.uid;
+      allow delete: if isAuthenticated() &&
+        resource.data.studentId == request.auth.uid;
+      allow read: if isAuthenticated() && (
+        resource.data.studentId == request.auth.uid ||
+        isRecruiter() || isGovernment()
+      );
+    }
+
+    // ----------------------------------------------------------------
+    // Achievements Collection
+    // Students own their achievements.
+    // Recruiters and Government can read.
+    // ----------------------------------------------------------------
+    match /achievements/{achievementId} {
+      allow create: if isAuthenticated() &&
+        request.resource.data.studentId == request.auth.uid;
+      allow update: if isAuthenticated() &&
+        resource.data.studentId == request.auth.uid &&
+        request.resource.data.studentId == request.auth.uid;
+      allow delete: if isAuthenticated() &&
+        resource.data.studentId == request.auth.uid;
+      allow read: if isAuthenticated() && (
+        resource.data.studentId == request.auth.uid ||
+        isRecruiter() || isGovernment()
+      );
+    }
+
+    // ----------------------------------------------------------------
+    // Opportunities Cache
+    // Per-student cache, owned by student only.
+    // ----------------------------------------------------------------
+    match /opportunities_cache/{studentId} {
+      allow read, write: if isAuthenticated() && request.auth.uid == studentId;
+    }
+
+    // ----------------------------------------------------------------
+    // Proof Documents
+    // Strictly private — student can only see their own documents.
+    // No recruiter or government read access (sensitive raw files).
+    // ----------------------------------------------------------------
+    match /proof_documents/{docId} {
+      allow create: if isAuthenticated() &&
+        request.resource.data.studentId == request.auth.uid;
+      allow update, delete: if isAuthenticated() &&
+        resource.data.studentId == request.auth.uid;
+      allow read: if isAuthenticated() &&
+        resource.data.studentId == request.auth.uid;
+    }
+
+    // ----------------------------------------------------------------
+    // Issuers Collection
+    // Anyone authenticated can read an issuer profile (for trust display).
+    // Only the issuer themselves (with issuer role) can write their doc.
+    // ----------------------------------------------------------------
+    match /issuers/{issuerId} {
+      allow get: if isAuthenticated();
+      allow list: if isAuthenticated() && (isRecruiter() || isIssuer() || isGovernment());
+      allow write: if isAuthenticated() &&
+        request.auth.uid == issuerId &&
+        isIssuer();
+    }
+
+    // ----------------------------------------------------------------
+    // Credentials Collection
+    // SECURITY FIX: Public get removed. All reads require authentication.
+    // Public verification is handled server-side via /api/verify/[id] route
+    // which does its own auth and returns only safe public fields.
+    // Issuers can create/update only their own credentials.
+    // Deletions are permanently blocked.
+    // ----------------------------------------------------------------
+    match /credentials/{credentialId} {
+      allow get: if isAuthenticated();
+      allow list: if isAuthenticated() && (isRecruiter() || isIssuer() || isGovernment());
+      allow create: if isIssuer() &&
+        request.resource.data.issuerId == request.auth.uid;
+      allow update: if isIssuer() &&
+        resource.data.issuerId == request.auth.uid &&
+        request.resource.data.issuerId == request.auth.uid;
+      allow delete: if false;
+    }
+
+    // ----------------------------------------------------------------
+    // Global Fraud Reports
+    // Read-only for recruiters and government. Server-only writes.
+    // ----------------------------------------------------------------
+    match /fraud_reports/{candidateId} {
+      allow read: if isRecruiter() || isGovernment();
+      allow write: if false;
+    }
+
+    // ----------------------------------------------------------------
+    // Default Deny — Catch-all
+    // ----------------------------------------------------------------
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
