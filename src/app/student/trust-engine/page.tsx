@@ -1,44 +1,27 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { 
   ShieldCheck, 
-  TrendingUp, 
-  AlertTriangle, 
-  CheckCircle2, 
-  ArrowUpRight, 
   Loader2, 
-  Building2, 
-  Calendar, 
-  Star, 
-  Users, 
-  Layers, 
-  Award, 
-  BookOpen, 
-  GitBranch, 
-  Briefcase, 
-  Info,
   ChevronRight,
-  TrendingDown,
+  CheckCircle2,
+  Star,
+  TrendingUp,
+  Users,
+  GitBranch,
+  BookOpen,
+  Award,
+  Briefcase,
   BrainCircuit,
   X
 } from "lucide-react";
 import { TrustScoreService } from "@/services/trust-score";
 import { useAuth } from "@/context/AuthContext";
 import Link from "next/link";
-
-interface TrustFactorMeta {
-  label: string;
-  value: number;
-  weight: string;
-  icon: any;
-  color: string;
-  description: string;
-  action: string;
-}
 
 export default function TrustEnginePage() {
   const [loading, setLoading] = useState(true);
@@ -50,9 +33,18 @@ export default function TrustEnginePage() {
 
   useEffect(() => {
     async function load() {
-      if (!currentUser) return;
+      if (!currentUser) {
+        setLoading(false);
+        return;
+      }
       const data = await TrustScoreService.getScore(currentUser.uid);
-      setScoreData(data);
+      setScoreData(data || {
+        total: 300,
+        factors: {},
+        history: [],
+        explanation: "Base reputation level. Link credentials to boost your FICO score.",
+        statusMeta: { bg: "bg-blue-500/10", border: "border-blue-500/20", color: "text-blue-400", label: "Initial" }
+      });
       setLoading(false);
     }
     load();
@@ -61,56 +53,44 @@ export default function TrustEnginePage() {
   if (loading) {
     return (
       <div className="flex h-[60vh] items-center justify-center">
-        <Loader2 className="w-8 h-8 text-primary animate-spin" />
+        <Loader2 className="w-8 h-8 text-[#B65F32] animate-spin" />
       </div>
     );
   }
 
-  const total = scoreData?.total || 350;
-  const explanation = scoreData?.explanation || "";
+  if (!currentUser) {
+    return (
+      <div className="max-w-md mx-auto my-16 text-center space-y-4 font-sans border border-white/5 p-8 rounded-2xl bg-[#111827]">
+        <ShieldCheck className="w-12 h-12 text-[#B65F32] mx-auto" />
+        <h2 className="text-xl font-bold text-white">Authentication Required</h2>
+        <p className="text-xs text-gray-400">Please sign in to access your AscendID Trust Engine telemetry.</p>
+        <Link href="/auth/login">
+          <Button className="bg-[#B65F32] hover:bg-[#8F4728] text-white font-mono text-xs font-bold h-10 px-6 rounded-lg mt-2">
+            Sign In To Proceed
+          </Button>
+        </Link>
+      </div>
+    );
+  }
+
+  const total = scoreData?.total || 300;
   const factors = scoreData?.factors || {};
   const history = scoreData?.history || [];
+  const explanation = scoreData?.explanation || "Identity reputation calculated from verified credentials.";
+  const statusMeta = scoreData?.statusMeta || { bg: "bg-blue-500/10", border: "border-blue-500/20", color: "text-blue-400", label: "Initial" };
+  const improvements: Array<{ title: string; desc: string; points: string }> = scoreData?.improvements || [
+    { title: "Anchor Degree Credential", desc: "Ensure your primary degree is anchored on Base Sepolia blockchain.", points: "+80" },
+    { title: "Connect DigiLocker Sync", desc: "Sync Class 10/12 marksheets via DigiLocker for biometric identity confidence.", points: "+40" }
+  ];
 
-  // Determine FICO classification
-  const getFicoClass = (score: number) => {
-    if (score >= 800) return { label: "Exceptional", color: "text-emerald-400", bg: "bg-emerald-500/10", border: "border-emerald-500/20" };
-    if (score >= 740) return { label: "Very Good", color: "text-teal-400", bg: "bg-teal-500/10", border: "border-teal-500/20" };
-    if (score >= 670) return { label: "Good", color: "text-sky-400", bg: "bg-sky-500/10", border: "border-sky-500/20" };
-    if (score >= 580) return { label: "Fair", color: "text-amber-400", bg: "bg-amber-500/10", border: "border-amber-500/20" };
-    return { label: "Poor", color: "text-rose-400", bg: "bg-rose-500/10", border: "border-rose-500/20" };
-  };
+  const trustEvidence = [
+    { title: "B.Tech Computer Science Degree", source: "IIT Bombay (Verified Authority Node)", impact: "+120 FICO", status: "On-Chain Anchor #btech-01" },
+    { title: "Software Engineering Internship", source: "Google LLC (Attested Employer)", impact: "+85 FICO", status: "Verified Certificate #goog-92" },
+    { title: "DigiLocker Government Aadhaar Link", source: "MeitY / Govt of India", impact: "+65 FICO", status: "Biometric Identity Synced" },
+    { title: "National AI Identity Hackathon (1st)", source: "MeitY Competition", impact: "+45 FICO", status: "Public Ledger Provenance" }
+  ];
 
-  const statusMeta = getFicoClass(total);
-
-  // Map 12 factors for easy loop rendering
-  const factorList: TrustFactorMeta[] = [
-    {
-      label: "Issuer Reputation",
-      value: factors.issuerReputation || 50,
-      weight: "10%",
-      icon: Building2,
-      color: "text-indigo-400",
-      description: "Evaluates the standing & type of institutions issuing your credentials. Blockchain-anchored or DigiLocker issuers boost reputation.",
-      action: "Anchor more credentials from top-tier institutional partners to push this above 80."
-    },
-    {
-      label: "Credential Freshness",
-      value: factors.credentialFreshness || 50,
-      weight: "5%",
-      icon: Calendar,
-      color: "text-green-400",
-      description: "Measures recency of achievements. Scoring decreases gradually as achievements age to prioritize active capabilities.",
-      action: "Regularly update your passport with recent certifications and project milestones."
-    },
-    {
-      label: "Credential Importance",
-      value: factors.credentialImportance || 50,
-      weight: "8%",
-      icon: Layers,
-      color: "text-blue-400",
-      description: "Evaluates academic degrees and longer internships over simple one-day badges, prioritizing high-effort milestones.",
-      action: "Add verified Degrees, research milestones, or structured long-term Internships."
-    },
+  const factorList = [
     {
       label: "Fraud Probability",
       value: factors.fraudProbability || 90,
@@ -194,50 +174,20 @@ export default function TrustEnginePage() {
     }
   ];
 
-  // Dynamic recommendations generated based on lowest factor values
-  const getImprovements = () => {
-    const list: any[] = [];
-    if ((factors.peerValidation || 0) < 60) {
-      list.push({
-        title: "Request a Recommendation",
-        points: "+25",
-        desc: "You have limited peer validation. A recommendation from a verified mentor or supervisor adds immediate proof."
-      });
-    }
-    if ((factors.verificationConfidence || 0) < 80) {
-      list.push({
-        title: "Anchor Credentials to Blockchain",
-        points: "+20",
-        desc: "Request pending issuers to anchor credentials to Base Sepolia to upgrade confidence from off-chain to on-chain."
-      });
-    }
-    if ((factors.openSourceActivity || 0) < 50) {
-      list.push({
-        title: "Verify Open Source Contributions",
-        points: "+15",
-        desc: "Link your Github developer credentials to back your skills with real commits."
-      });
-    }
-    if ((factors.fraudProbability || 0) < 95) {
-      list.push({
-        title: "Add Document Proofs for Self-Claims",
-        points: "+15",
-        desc: "Adding PDF proof links to your unverified achievements reduces the unverified claims penalty."
-      });
-    }
-    return list.slice(0, 2); // Show top 2 recommendations
-  };
-
-  const improvements = getImprovements();
+  if (loading) {
+    return (
+      <div className="flex h-[60vh] items-center justify-center">
+        <Loader2 className="w-8 h-8 text-[#B65F32] animate-spin" />
+      </div>
+    );
+  }
 
   // SVG Gauge Calculations
   const radius = 80;
   const circumference = 2 * Math.PI * radius;
-  // Map 300-850 range to 0-100 percentage
   const scorePercent = Math.max(0, Math.min(100, ((total - 300) / 550) * 100));
   const strokeOffset = circumference - (scorePercent / 100) * circumference;
 
-  // Custom SVG History Sparkline Line Math
   const getSvgPath = () => {
     if (history.length < 2) return "";
     const width = 600;
@@ -256,7 +206,6 @@ export default function TrustEnginePage() {
 
     let path = `M ${xPoints[0]} ${yPoints[0]}`;
     for (let i = 1; i < history.length; i++) {
-      // Smooth cubic bezier curves
       const cpX1 = xPoints[i - 1] + (xPoints[i] - xPoints[i - 1]) / 2;
       const cpY1 = yPoints[i - 1];
       const cpX2 = xPoints[i - 1] + (xPoints[i] - xPoints[i - 1]) / 2;
@@ -267,19 +216,30 @@ export default function TrustEnginePage() {
   };
 
   return (
-    <div className="space-y-8 animate-in fade-in duration-500 max-w-5xl mx-auto">
+    <div className="space-y-12 max-w-7xl mx-auto pb-16 font-sans text-[#F5F1E8]">
       
-      {/* Header */}
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+      {/* Editorial Header */}
+      <div className="border-b border-[#B65F32]/25 pb-8 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
-          <h1 className="text-3xl font-bold text-white tracking-tight flex items-center gap-2">
-            Dynamic Trust Engine
+          <div className="flex items-center gap-2 mb-2">
+            <Badge className="bg-[#B65F32]/15 text-[#B65F32] border-[#B65F32]/30 text-[10px] uppercase font-mono tracking-widest px-2.5 py-0.5">
+              Computed Identity Signal
+            </Badge>
+            <span className="text-xs font-mono text-[#8A847B]">Deterministic FICO Scoring Engine</span>
+          </div>
+          <h1 className="text-4xl font-extrabold font-heading text-[#F5F1E8] tracking-tight">
+            AscendID Trust Engine
           </h1>
-          <p className="text-muted-foreground mt-1">Real-time cryptographic credit metrics verifying your capabilities.</p>
+          <p className="text-sm text-[#8A847B] mt-1 max-w-2xl">
+            Real-time reputation signal computed exclusively from verified proof assets, on-chain anchors, and issuer authority.
+          </p>
         </div>
-        <div className="border border-white/5 bg-neutral-950/60 p-4 rounded-xl text-xs text-muted-foreground max-w-sm backdrop-blur-md">
-          <p><strong className="text-white">Explainable Identity:</strong> This engine dynamically translates verified cryptographic proofs, peer assertions, and active timeline consistency into a transparent credit score.</p>
-        </div>
+
+        <Link href="/student/passport">
+          <Button className="bg-[#B65F32] hover:bg-[#8F4728] text-white font-mono text-xs font-bold h-10 px-5 rounded-lg">
+            Return To Passport <ChevronRight className="w-4 h-4 ml-1" />
+          </Button>
+        </Link>
       </div>
 
       {/* Main Score and Sparkline Row */}
@@ -418,7 +378,7 @@ export default function TrustEnginePage() {
 
       {/* Grid of the 12 Factors */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-        {factorList.map((f: TrustFactorMeta) => {
+        {factorList.map((f: any) => {
           const FactorIcon = f.icon;
           
           // Determine color and status badge based on factor score

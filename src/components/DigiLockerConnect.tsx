@@ -40,12 +40,12 @@ export function DigiLockerConnect({ onComplete }: { onComplete: () => void }) {
   if (step === "success") {
     return (
       <div className="flex flex-col items-center justify-center gap-4 py-8 text-center">
-        <div className="w-16 h-16 rounded-full bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center">
-          <CheckCircle2 className="w-8 h-8 text-emerald-400" />
+        <div className="w-16 h-16 rounded-full bg-[#C9944A]/10 border border-[#C9944A]/30 flex items-center justify-center">
+          <CheckCircle2 className="w-8 h-8 text-[#C9944A]" />
         </div>
         <div>
-          <h3 className="text-lg font-bold text-white">Academic Identity Connected</h3>
-          <p className="text-sm text-gray-400 mt-1">
+          <h3 className="text-lg font-bold text-[#F5F1E8]">Academic Identity Connected</h3>
+          <p className="text-sm text-[#8A847B] mt-1">
             {isDemoUser(currentUser?.email || currentUser?.uid) ? "Demo: Academic records synced successfully." : "Records verified and imported successfully."}
           </p>
         </div>
@@ -57,11 +57,11 @@ export function DigiLockerConnect({ onComplete }: { onComplete: () => void }) {
     <div className="space-y-6">
       {/* Header */}
       <div className="text-center space-y-2">
-        <div className="w-14 h-14 rounded-2xl bg-blue-600/10 border border-blue-500/20 flex items-center justify-center mx-auto">
-          <ShieldCheck className="w-7 h-7 text-blue-500" />
+        <div className="w-14 h-14 rounded-md bg-[#B65F32]/10 border border-[#B65F32]/30 flex items-center justify-center mx-auto">
+          <ShieldCheck className="w-7 h-7 text-[#B65F32]" />
         </div>
-        <h3 className="text-xl font-bold text-white">Connect Academic Identity</h3>
-        <p className="text-sm text-gray-400 leading-relaxed max-w-sm mx-auto">
+        <h3 className="text-xl font-bold text-[#F5F1E8]">Connect Academic Identity</h3>
+        <p className="text-sm text-[#8A847B] leading-relaxed max-w-sm mx-auto">
           {isDemoUser(currentUser?.email || currentUser?.uid)
             ? "Simulate DigiLocker connection to import and verify your academic records."
             : "Link with DigiLocker to import and cryptographically verify your government-backed academic records."}
@@ -70,11 +70,11 @@ export function DigiLockerConnect({ onComplete }: { onComplete: () => void }) {
 
       {/* Demo mode notice */}
       {isDemoUser(currentUser?.email || currentUser?.uid) && (
-        <div className="flex items-start gap-2.5 px-4 py-3 rounded-xl bg-blue-500/5 border border-blue-500/20 text-blue-400 text-xs">
+        <div className="flex items-start gap-2.5 px-4 py-3 rounded-md bg-[#B65F32]/5 border border-[#B65F32]/20 text-[#B65F32] text-xs">
           <Info className="w-4 h-4 shrink-0 mt-0.5" />
           <div>
             <span className="font-bold uppercase tracking-widest text-[10px]">Demo Mode</span>
-            <p className="text-gray-400 mt-0.5 leading-relaxed">
+            <p className="text-[#8A847B] mt-0.5 leading-relaxed">
               This simulates the DigiLocker OAuth flow. In production, this redirects to DigiLocker's government portal for real document verification.
             </p>
           </div>
@@ -84,15 +84,15 @@ export function DigiLockerConnect({ onComplete }: { onComplete: () => void }) {
       {step === "initial" ? (
         <>
           {/* Supported Documents */}
-          <div className="bg-white/[0.02] border border-white/5 rounded-xl p-4 space-y-2">
-            <div className="flex items-center gap-2 text-xs font-bold text-white uppercase tracking-wider font-mono">
-              <FileText className="w-3.5 h-3.5 text-blue-400" />
+          <div className="bg-[#191919] border border-[#B65F32]/20 rounded-md p-4 space-y-2">
+            <div className="flex items-center gap-2 text-xs font-bold text-[#F5F1E8] uppercase tracking-wider font-mono">
+              <FileText className="w-3.5 h-3.5 text-[#B65F32]" />
               Supported Documents
             </div>
             <ul className="space-y-1.5">
               {SUPPORTED_DOCS.map(d => (
-                <li key={d} className="flex items-center gap-2 text-xs text-gray-400">
-                  <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+                <li key={d} className="flex items-center gap-2 text-xs text-[#8A847B]">
+                  <CheckCircle2 className="w-3.5 h-3.5 text-[#C9944A] shrink-0" />
                   {d}
                 </li>
               ))}
@@ -101,25 +101,25 @@ export function DigiLockerConnect({ onComplete }: { onComplete: () => void }) {
 
           <Button
             onClick={handleConnect}
-            className="w-full bg-blue-600 hover:bg-blue-700 text-white h-12 font-bold rounded-xl shadow-[0_0_20px_rgba(37,99,235,0.2)] transition-all"
+            className="w-full bg-[#B65F32] hover:bg-[#8F4728] text-[#F5F1E8] h-11 font-bold rounded-md transition-all"
           >
             {isDemoUser(currentUser?.email || currentUser?.uid) ? "Simulate DigiLocker Connection" : "Continue to DigiLocker"}
-            <ArrowRight className="w-5 h-5 ml-2" />
+            <ArrowRight className="w-4 h-4 ml-2" />
           </Button>
         </>
       ) : (
         <div className="flex flex-col items-center justify-center py-8 space-y-5">
           <div className="relative">
-            <div className="w-16 h-16 rounded-full border-2 border-blue-500/30 border-t-blue-500 animate-spin" />
+            <div className="w-16 h-16 rounded-full border-2 border-[#B65F32]/30 border-t-[#B65F32] animate-spin" />
             <div className="absolute inset-0 flex items-center justify-center">
-              <ShieldCheck className="w-6 h-6 text-blue-500" />
+              <ShieldCheck className="w-6 h-6 text-[#B65F32]" />
             </div>
           </div>
           <div className="text-center space-y-1">
-            <h3 className="text-base font-bold text-white">
+            <h3 className="text-base font-bold text-[#F5F1E8]">
               {step === "connecting" ? "Establishing Secure Link..." : "Syncing Academic Records..."}
             </h3>
-            <p className="text-xs text-gray-400 animate-pulse">
+            <p className="text-xs text-[#8A847B] animate-pulse">
               {step === "connecting"
                 ? "Verifying institutional cryptographic signatures"
                 : "Importing DigiLocker-verified documents"}
@@ -133,11 +133,11 @@ export function DigiLockerConnect({ onComplete }: { onComplete: () => void }) {
             ].map(item => (
               <div key={item.label} className="flex items-center gap-2.5 text-xs">
                 {item.done ? (
-                  <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+                  <CheckCircle2 className="w-3.5 h-3.5 text-[#C9944A] shrink-0" />
                 ) : (
-                  <Loader2 className="w-3.5 h-3.5 text-blue-400 animate-spin shrink-0" />
+                  <Loader2 className="w-3.5 h-3.5 text-[#B65F32] animate-spin shrink-0" />
                 )}
-                <span className={item.done ? "text-white" : "text-gray-400"}>{item.label}</span>
+                <span className={item.done ? "text-[#F5F1E8]" : "text-[#8A847B]"}>{item.label}</span>
               </div>
             ))}
           </div>

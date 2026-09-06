@@ -42,74 +42,72 @@ import Link from "next/link";
 const CustomGraphNode = ({ data }: NodeProps) => {
   const { type, title, issuer, status, isDigiLocker } = data;
 
-  // Icon selector based on category
   const getIcon = () => {
     switch (type) {
       case "Degree":
       case "Academic":
-        return <GraduationCap className="w-5 h-5 text-indigo-400" />;
+        return <GraduationCap className="w-5 h-5 text-[#C9944A]" />;
       case "Internship":
       case "Experience":
-        return <Briefcase className="w-5 h-5 text-emerald-400" />;
+        return <Briefcase className="w-5 h-5 text-[#B65F32]" />;
       case "Hackathon":
-        return <Award className="w-5 h-5 text-amber-400" />;
+        return <Award className="w-5 h-5 text-[#C9944A]" />;
       case "Research":
-        return <BookOpen className="w-5 h-5 text-sky-400" />;
+        return <BookOpen className="w-5 h-5 text-[#F5F1E8]" />;
       case "Open Source":
-        return <GitBranch className="w-5 h-5 text-purple-400" />;
+        return <GitBranch className="w-5 h-5 text-[#B65F32]" />;
       case "Certification":
-        return <Award className="w-5 h-5 text-pink-400" />;
+        return <Award className="w-5 h-5 text-[#C9944A]" />;
       case "Recommendation":
-        return <FileText className="w-5 h-5 text-teal-400" />;
+        return <FileText className="w-5 h-5 text-[#8A847B]" />;
       default:
-        return <Code className="w-5 h-5 text-primary" />;
+        return <Code className="w-5 h-5 text-[#B65F32]" />;
     }
   };
 
   const getStatusColor = () => {
-    if (status === "revoked") return "border-rose-500/40 shadow-[0_0_15px_rgba(244,63,94,0.15)]";
+    if (status === "revoked") return "border-[#9E2A2B]/60 shadow-[0_0_15px_rgba(158,42,43,0.15)]";
     if (status === "verified" || status === "issued" || isDigiLocker) {
-      return "border-emerald-500/40 shadow-[0_0_15px_rgba(16,185,129,0.15)]";
+      return "border-[#C9944A]/60 shadow-[0_0_15px_rgba(201,148,74,0.15)]";
     }
-    return "border-amber-500/40 shadow-[0_0_15px_rgba(234,179,8,0.15)]";
+    return "border-[#B65F32]/40 shadow-[0_0_15px_rgba(182,95,50,0.15)]";
   };
 
   return (
-    <div className={`p-4 rounded-xl bg-neutral-950/80 border backdrop-blur-md w-60 text-left transition-all hover:scale-102 ${getStatusColor()}`}>
-      {/* Source & Target handles for tree routing */}
-      <Handle type="target" position={Position.Top} className="w-2.5 h-2.5 bg-primary/50 border-white/20" />
+    <div className={`p-4 rounded-md bg-[#191919] border border-[#B65F32]/25 text-left transition-all hover:scale-102 ${getStatusColor()} w-60`}>
+      <Handle type="target" position={Position.Top} className="w-2.5 h-2.5 bg-[#B65F32] border-white/20" />
       
       <div className="flex items-start justify-between gap-3">
-        <div className="p-2 bg-neutral-900 border border-white/5 rounded-lg shrink-0">
+        <div className="p-2 bg-[#0D0D0D] border border-white/10 rounded-md shrink-0">
           {getIcon()}
         </div>
         <div className="flex-1 min-w-0">
-          <span className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider block">
+          <span className="text-[9px] font-bold text-[#8A847B] uppercase tracking-wider block">
             {type}
           </span>
-          <h4 className="text-xs font-bold text-white truncate leading-normal mt-0.5" title={title}>
+          <h4 className="text-xs font-bold text-[#F5F1E8] truncate leading-normal mt-0.5" title={title}>
             {title}
           </h4>
-          <p className="text-[10px] text-muted-foreground truncate mt-0.5">
+          <p className="text-[10px] text-[#8A847B] truncate mt-0.5">
             {issuer}
           </p>
         </div>
       </div>
 
-      <div className="flex items-center justify-between border-t border-white/5 pt-2.5 mt-2.5">
-        <span className="text-[8px] text-white/40 font-mono">
+      <div className="flex items-center justify-between border-t border-white/10 pt-2.5 mt-2.5">
+        <span className="text-[8px] text-[#8A847B] font-mono">
           {isDigiLocker ? "DIGILOCKER" : status === "revoked" ? "REVOKED" : status === "verified" || status === "issued" ? "VERIFIED" : "PENDING"}
         </span>
         {status === "revoked" ? (
-          <div className="w-1.5 h-1.5 rounded-full bg-rose-500" />
+          <div className="w-1.5 h-1.5 rounded-full bg-[#9E2A2B]" />
         ) : status === "verified" || status === "issued" || isDigiLocker ? (
-          <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+          <div className="w-1.5 h-1.5 rounded-full bg-[#C9944A] animate-pulse" />
         ) : (
-          <div className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />
+          <div className="w-1.5 h-1.5 rounded-full bg-[#B65F32] animate-pulse" />
         )}
       </div>
 
-      <Handle type="source" position={Position.Bottom} className="w-2.5 h-2.5 bg-primary/50 border-white/20" />
+      <Handle type="source" position={Position.Bottom} className="w-2.5 h-2.5 bg-[#B65F32] border-white/20" />
     </div>
   );
 };
@@ -123,7 +121,7 @@ interface ProofGraphProps {
   instCredentials: any[];
 }
 
-export default function ProofGraph({ records, achievements, instCredentials }: ProofGraphProps) {
+export function ProofGraph({ records, achievements, instCredentials }: ProofGraphProps) {
   const [selectedNodeData, setSelectedNodeData] = useState<any | null>(null);
 
   const nodeTypes = useMemo(() => ({ custom: CustomGraphNode }), []);
@@ -224,8 +222,8 @@ export default function ProofGraph({ records, achievements, instCredentials }: P
           source: n1.id,
           target: n2.id,
           animated: n1.status === "verified" || n1.isDigiLocker,
-          style: { stroke: "#6366f1", strokeWidth: 1.5 },
-          markerEnd: { type: MarkerType.ArrowClosed, color: "#6366f1" }
+          style: { stroke: "#B65F32", strokeWidth: 1.5 },
+          markerEnd: { type: MarkerType.ArrowClosed, color: "#B65F32" }
         });
       });
     });
@@ -238,8 +236,8 @@ export default function ProofGraph({ records, achievements, instCredentials }: P
           source: n2.id,
           target: n3.id,
           animated: n2.status === "verified",
-          style: { stroke: "#ec4899", strokeWidth: 1.5 },
-          markerEnd: { type: MarkerType.ArrowClosed, color: "#ec4899" }
+          style: { stroke: "#C9944A", strokeWidth: 1.5 },
+          markerEnd: { type: MarkerType.ArrowClosed, color: "#C9944A" }
         });
       });
     });
@@ -252,8 +250,8 @@ export default function ProofGraph({ records, achievements, instCredentials }: P
           source: n3.id,
           target: n4.id,
           animated: n3.status === "verified",
-          style: { stroke: "#3b82f6", strokeWidth: 1.5 },
-          markerEnd: { type: MarkerType.ArrowClosed, color: "#3b82f6" }
+          style: { stroke: "#8F4728", strokeWidth: 1.5 },
+          markerEnd: { type: MarkerType.ArrowClosed, color: "#8F4728" }
         });
       });
     });
@@ -267,8 +265,8 @@ export default function ProofGraph({ records, achievements, instCredentials }: P
             source: n1.id,
             target: n4.id,
             animated: true,
-            style: { stroke: "#10b981", strokeWidth: 1.5 },
-            markerEnd: { type: MarkerType.ArrowClosed, color: "#10b981" }
+            style: { stroke: "#C9944A", strokeWidth: 1.5 },
+            markerEnd: { type: MarkerType.ArrowClosed, color: "#C9944A" }
           });
         });
       });

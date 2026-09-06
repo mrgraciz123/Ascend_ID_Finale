@@ -49,7 +49,9 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Missing required credential fields" }, { status: 400 });
     }
 
-    const issuerWallet = rawIssuerWallet || "0x0000000000000000000000000000000000000000";
+    const issuerWallet = rawIssuerWallet 
+      || process.env.ASCENDCHAIN_ISSUER_ADDRESS
+      || "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266"; // Hardhat dev key #0 address (devnet only)
 
     // 1. Generate local UUID for the document
     const docRef = adminDb.collection("credentials").doc();

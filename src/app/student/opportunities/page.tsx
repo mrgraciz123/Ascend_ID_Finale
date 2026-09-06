@@ -52,28 +52,33 @@ export default function OpportunitiesPage() {
   const [selectedOpp, setSelectedOpp] = useState<any | null>(null);
   const [drawerOpen, setDrawerOpen] = useState(false);
 
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
+
   const { currentUser } = useAuth();
 
   useEffect(() => {
     async function load() {
-      if (!currentUser) return;
       try {
+        setLoading(true);
+        setErrorMsg(null);
+        const uid = currentUser?.uid || "demo-student-001";
         const [profile, opps] = await Promise.all([
-          StudentService.getProfile(currentUser.uid),
-          OpportunityService.getRecommendations(currentUser.uid)
+          StudentService.getProfile(uid),
+          OpportunityService.getRecommendations(uid)
         ]);
         
         setStudent(profile);
-        setLocation(profile.location || "Remote");
-        setInterests(profile.interests || ["Full-Stack Development"]);
-        setProjects(profile.projects || []);
+        setLocation(profile?.location || "Remote");
+        setInterests(profile?.interests || ["Full-Stack Development"]);
+        setProjects(profile?.projects || []);
         
         const normalizedOpps = Array.isArray(opps) 
           ? opps.map((o: any) => ({ ...o, tags: Array.isArray(o.tags) ? o.tags : [] }))
           : [];
         setOpportunities(normalizedOpps);
-      } catch (e) {
+      } catch (e: any) {
         console.error("Error loading opportunities page details:", e);
+        setErrorMsg(e?.message || "Failed to load opportunities from service");
       } finally {
         setLoading(false);
       }

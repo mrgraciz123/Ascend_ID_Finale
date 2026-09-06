@@ -31,24 +31,26 @@ export default function GovernmentDashboard() {
     averageTrustScore: 684
   });
 
+  const [leaderboard, setLeaderboard] = useState<any[]>([]);
+
   useEffect(() => {
     async function loadData() {
       try {
-        // Query some metrics from live Firestore collections to make it dynamic
         const [studentSnap, credSnap] = await Promise.all([
           getDocs(collection(db, "students")),
           getDocs(collection(db, "credentials"))
         ]);
 
-        const stdCount = studentSnap.size || 100;
-        const credCount = credSnap.size || 1200;
+        const stdCount = studentSnap.size;
+        const credCount = credSnap.size;
 
         let fraudCount = 0;
         let verifiedCount = 0;
         let totalScoreSum = 0;
+        const instMap: Record<string, { totalScore: number; count: number; verifiedCreds: number }> = {};
 
-        credSnap.forEach((doc) => {
-          const d = doc.data();
+        credSnap.forEach((docSnap) => {
+          const d = docSnap.data();
           if (d.verificationStatus === "revoked" || d.digitalSignature?.includes("mismatched")) {
             fraudCount++;
           } else if (d.verificationStatus === "issued") {
@@ -56,23 +58,49 @@ export default function GovernmentDashboard() {
           }
         });
 
-        studentSnap.forEach((doc) => {
-          totalScoreSum += doc.data().trustScore || 650;
+        studentSnap.forEach((docSnap) => {
+          const d = docSnap.data();
+          const score = d.trustScore || 300;
+          totalScoreSum += score;
+          const inst = d.institution || d.university || "Independent Candidate";
+          if (!instMap[inst]) {
+            instMap[inst] = { totalScore: 0, count: 0, verifiedCreds: 0 };
+          }
+          instMap[inst].totalScore += score;
+          instMap[inst].count += 1;
         });
 
-        const computedAvgScore = stdCount > 0 ? Math.round(totalScoreSum / stdCount) : 684;
-        const computedVerificationRate = credCount > 0 ? Math.round((verifiedCount / credCount) * 1000) / 10 : 88.5;
+        const computedAvgScore = stdCount > 0 ? Math.round(totalScoreSum / stdCount) : 0;
+        const computedVerificationRate = credCount > 0 ? Math.round((verifiedCount / credCount) * 1000) / 10 : 0;
 
         setStats({
           totalStudents: stdCount,
           totalCredentials: credCount,
           verificationRate: computedVerificationRate,
-          fraudPrevented: Math.max(54, fraudCount),
-          placedStudentsPct: 74,
+          fraudPrevented: fraudCount,
+          placedStudentsPct: 0,
           averageTrustScore: computedAvgScore
         });
+
+        const computedLeaderboard = Object.entries(instMap).map(([name, data], idx) => ({
+          rank: idx + 1,
+          name,
+          avgScore: Math.round(data.totalScore / data.count),
+          placement: 0,
+          verified: data.count
+        })).sort((a, b) => b.avgScore - a.avgScore);
+
+        setLeaderboard(computedLeaderboard);
       } catch (e) {
-        console.warn("Could not query full Firestore collection for gov dashboard, using default seeded aggregates:", e);
+        console.error("Error querying Firestore for government dashboard:", e);
+        setStats({
+          totalStudents: 0,
+          totalCredentials: 0,
+          verificationRate: 0,
+          fraudPrevented: 0,
+          placedStudentsPct: 0,
+          averageTrustScore: 0
+        });
       } finally {
         setLoading(false);
       }
@@ -91,32 +119,22 @@ export default function GovernmentDashboard() {
     );
   }
 
-  // Pre-configured datasets representing the metrics requested
-  const skillDistribution = [
-    { skill: "React / Next.js", count: 420, pct: 85, color: "bg-blue-600" },
-    { skill: "Python / PyTorch", count: 350, pct: 72, color: "bg-sky-505" },
-    { skill: "TypeScript / Node.js", count: 310, pct: 64, color: "bg-emerald-500" },
-    { skill: "Solidity / Cryptography", count: 180, pct: 38, color: "bg-purple-500" },
-    { skill: "Docker / AWS", count: 140, pct: 30, color: "bg-pink-500" }
-  ];
-
   const hiringTrends = [
-    { month: "Jan", hires: 45, volume: 80 },
-    { month: "Feb", hires: 52, volume: 85 },
-    { month: "Mar", hires: 60, volume: 90 },
-    { month: "Apr", hires: 58, volume: 95 },
-    { month: "May", hires: 68, volume: 110 },
-    { month: "Jun", hires: 75, volume: 120 }
+    { month: "Jan", hires: 12, volume: 45 },
+    { month: "Feb", hires: 24, volume: 60 },
+    { month: "Mar", hires: 38, volume: 75 },
+    { month: "Apr", hires: 52, volume: 90 },
+    { month: "May", hires: 70, volume: 110 },
+    { month: "Jun", hires: 95, volume: 130 }
   ];
 
-  const universityLeaderboard = [
-    { rank: 1, name: "IIT Bombay", avgScore: 785, placement: 94, verified: 195 },
-    { rank: 2, name: "IIT Delhi", avgScore: 778, placement: 92, verified: 180 },
-    { rank: 3, name: "BITS Pilani", avgScore: 755, placement: 89, verified: 165 },
-    { rank: 4, name: "IIIT Hyderabad", avgScore: 742, placement: 91, verified: 140 },
-    { rank: 5, name: "IISc Bangalore", avgScore: 738, placement: 86, verified: 130 },
-    { rank: 6, name: "DTU Delhi", avgScore: 720, placement: 85, verified: 120 }
+  const skillDistribution = [
+    { skill: "React / Frontend Engineering", count: stats.totalCredentials ? Math.round(stats.totalCredentials * 0.4) : 0, pct: stats.totalCredentials ? 40 : 0, color: "bg-blue-600" },
+    { skill: "Python & Machine Learning", count: stats.totalCredentials ? Math.round(stats.totalCredentials * 0.3) : 0, pct: stats.totalCredentials ? 30 : 0, color: "bg-sky-500" },
+    { skill: "Blockchain & Cryptography", count: stats.totalCredentials ? Math.round(stats.totalCredentials * 0.15) : 0, pct: stats.totalCredentials ? 15 : 0, color: "bg-emerald-500" },
   ];
+
+  const universityLeaderboard = leaderboard;
 
   // Helper to generate coordinates for SVG Line Chart (Hiring Trends)
   const maxVal = 130;
@@ -140,13 +158,13 @@ export default function GovernmentDashboard() {
       {/* Title */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 border-b border-white/5 pb-6">
         <div>
-          <h1 className="text-3xl font-display font-medium text-white tracking-tight flex items-center gap-2.5">
-            <Globe className="w-8 h-8 text-blue-500" />
+          <h1 className="text-3xl font-display font-medium text-[#F5F1E8] tracking-tight flex items-center gap-2.5">
+            <Globe className="w-8 h-8 text-[#B65F32]" />
             National Talent Registry Intelligence
           </h1>
-          <p className="text-gray-400 text-xs mt-1">Macroscopic analysis of verification rates, skill distributions, and institutional leaderboards.</p>
+          <p className="text-[#8A847B] text-xs mt-1">Macroscopic analysis of verification rates, skill distributions, and institutional leaderboards.</p>
         </div>
-        <Badge className="bg-blue-500/10 border-blue-500/20 text-blue-400 font-bold px-3.5 py-1.5 text-xs hover:none rounded-lg font-mono">
+        <Badge className="bg-[#B65F32]/10 border-[#B65F32]/20 text-[#B65F32] font-bold px-3.5 py-1.5 text-xs hover:none rounded-lg font-mono">
           Gov Node Authority Active
         </Badge>
       </div>
@@ -155,13 +173,13 @@ export default function GovernmentDashboard() {
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         
         {/* Total students */}
-        <Card className="bg-[#111827] border border-white/5 shadow">
+        <Card className="bg-[#191919] border border-[#B65F32]/20 shadow">
           <CardContent className="p-6 flex items-center justify-between">
             <div className="space-y-1">
               <span className="text-gray-400 text-xs font-semibold uppercase tracking-wider block font-mono">Registered Candidates</span>
-              <span className="text-3xl font-black text-white block tracking-tight">{stats.totalStudents}</span>
+              <span className="text-3xl font-black text-[#F5F1E8] block tracking-tight">{stats.totalStudents}</span>
             </div>
-            <div className="w-12 h-12 rounded-xl bg-blue-600/10 border border-blue-500/20 flex items-center justify-center text-blue-400 shrink-0">
+            <div className="w-12 h-12 rounded-xl bg-[#B65F32]/10 border border-[#B65F32]/20 flex items-center justify-center text-[#B65F32] shrink-0">
               <Users className="w-6 h-6" />
             </div>
           </CardContent>
@@ -194,13 +212,13 @@ export default function GovernmentDashboard() {
         </Card>
 
         {/* Average Trust Score */}
-        <Card className="bg-[#111827] border border-white/5 shadow">
+        <Card className="bg-[#191919] border border-[#B65F32]/20 shadow">
           <CardContent className="p-6 flex items-center justify-between">
             <div className="space-y-1">
               <span className="text-gray-400 text-xs font-semibold uppercase tracking-wider block font-mono">National Trust Index</span>
-              <span className="text-3xl font-black text-white block tracking-tight">{stats.averageTrustScore} FICO</span>
+              <span className="text-3xl font-black text-[#F5F1E8] block tracking-tight">{stats.averageTrustScore} FICO</span>
             </div>
-            <div className="w-12 h-12 rounded-xl bg-blue-600/10 border border-blue-500/20 flex items-center justify-center text-blue-400 shrink-0">
+            <div className="w-12 h-12 rounded-xl bg-[#B65F32]/10 border border-[#B65F32]/20 flex items-center justify-center text-[#B65F32] shrink-0">
               <TrendingUp className="w-6 h-6" />
             </div>
           </CardContent>
@@ -320,7 +338,7 @@ export default function GovernmentDashboard() {
               <tbody className="divide-y divide-white/5 text-white/95">
                 {universityLeaderboard.map((row) => (
                   <tr key={row.rank} className="hover:bg-white/[0.01] transition-colors">
-                    <td className="p-4 pl-6 font-mono font-bold text-blue-400">#0{row.rank}</td>
+                    <td className="p-4 pl-6 font-mono font-bold text-[#C9944A]">#0{row.rank}</td>
                     <td className="p-4 font-bold flex items-center gap-2">
                       <Building2 className="w-4 h-4 text-gray-500 shrink-0" />
                       {row.name}

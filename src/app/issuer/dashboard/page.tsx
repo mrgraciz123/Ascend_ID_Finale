@@ -112,24 +112,29 @@ export default function IssuerDashboard() {
   const [refreshing, setRefreshing] = useState(false);
 
   async function loadData() {
-    const demoActive = isDemoUser(currentUser?.email || currentUser?.uid);
-    if (demoActive) {
-      await new Promise(r => setTimeout(r, 400));
-      setIssuerProfile(DEMO_ISSUER);
-      setCredentials(DEMO_CREDENTIALS);
+    if (!currentUser) {
       setLoading(false);
       setRefreshing(false);
       return;
     }
 
-    if (!currentUser) return;
     try {
       const profileDoc = await getDoc(doc(db, "issuers", currentUser.uid));
-      if (profileDoc.exists()) setIssuerProfile(profileDoc.data());
+      if (profileDoc.exists()) {
+        setIssuerProfile(profileDoc.data());
+      } else {
+        setIssuerProfile({
+          name: currentUser.displayName || "Authorized Issuer",
+          email: currentUser.email || "",
+          issuerType: "university",
+          uid: currentUser.uid
+        });
+      }
       const list = await CredentialService.getIssuerCredentials(currentUser.uid);
-      setCredentials(list);
+      setCredentials(list || []);
     } catch (error) {
       console.error("Dashboard failed to load:", error);
+      setCredentials([]);
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -149,14 +154,24 @@ export default function IssuerDashboard() {
     return (
       <div className="flex h-[60vh] items-center justify-center">
         <div className="flex flex-col items-center gap-3">
-          <div className="relative">
-            <div className="w-12 h-12 rounded-full border-2 border-blue-500/30 border-t-blue-500 animate-spin" />
-            <Layers className="w-5 h-5 text-blue-500 absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2" />
-          </div>
-          <span className="text-xs font-mono text-gray-400 uppercase tracking-widest animate-pulse">
-            Loading Issuer Console...
-          </span>
+          <Loader2 className="w-8 h-8 text-amber-500 animate-spin" />
+          <span className="text-xs font-mono text-gray-400 uppercase tracking-widest">Loading Issuer Console...</span>
         </div>
+      </div>
+    );
+  }
+
+  if (!currentUser) {
+    return (
+      <div className="max-w-md mx-auto my-16 text-center space-y-4 font-sans border border-white/5 p-8 rounded-2xl bg-[#111827]">
+        <ShieldCheck className="w-12 h-12 text-amber-500 mx-auto" />
+        <h2 className="text-xl font-bold text-white tracking-tight">Authentication Required</h2>
+        <p className="text-xs text-gray-400 leading-relaxed">Please log in with an authorized issuer account to manage and anchor credentials.</p>
+        <Link href="/auth/login" className="inline-block">
+          <Button className="bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs h-10 px-6 rounded-xl">
+            Log In to Issuer Console
+          </Button>
+        </Link>
       </div>
     );
   }
@@ -192,22 +207,21 @@ export default function IssuerDashboard() {
         <motion.div
           initial={{ opacity: 0, y: -10 }}
           animate={{ opacity: 1, y: 0 }}
-          className="flex items-center justify-between px-4 py-3 rounded-xl bg-blue-600/5 border border-blue-500/20"
+          className="flex items-center justify-between px-4 py-3 rounded-xl bg-[#B65F32]/5 border border-[#B65F32]/20"
         >
-          <div className="flex items-center gap-2.5">
-            <span className="w-2 h-2 rounded-full bg-blue-500 animate-pulse" />
-            <span className="text-xs font-bold text-blue-400 uppercase tracking-widest">Demo Mode</span>
-            <span className="text-xs text-gray-400">— IIT Bombay Admin Console</span>
+          <div className="flex items-center gap-2">
+            <span className="w-2 h-2 rounded-full bg-[#B65F32] animate-pulse" />
+            <span className="text-xs font-bold text-[#B65F32] uppercase tracking-widest">Demo Mode</span>
           </div>
-          <Badge className="bg-blue-500/10 border-blue-500/20 text-blue-400 text-[10px] font-mono">DEMO</Badge>
+          <Badge className="bg-[#B65F32]/10 border-[#B65F32]/20 text-[#B65F32] text-[10px] font-mono">DEMO</Badge>
         </motion.div>
       )}
 
       {/* Top Bar */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-          <h1 className="text-3xl font-display font-medium text-white tracking-tight">Issuer Console</h1>
-          <p className="text-gray-400 text-xs mt-1">
+          <h1 className="text-3xl font-display font-medium text-[#F5F1E8] tracking-tight">Issuer Console</h1>
+          <p className="text-[#8A847B] text-xs mt-1">
             Issue, manage, and anchor official credentials on Base Sepolia.
           </p>
         </div>
@@ -267,7 +281,7 @@ export default function IssuerDashboard() {
         {[
           { label: "Total Issued", value: totalIssued, color: "text-white", icon: Layers },
           { label: "Active Valid", value: activeCount, color: "text-emerald-400", icon: ShieldCheck },
-          { label: "On-Chain", value: blockchainAnchoredCount, color: "text-blue-400", icon: Database },
+          { label: "On-Chain", value: blockchainAnchoredCount, color: "text-[#C9944A]", icon: Database },
           { label: "Revoked", value: revokedCount, color: "text-red-400", icon: FileText },
           { label: "Expired", value: expiredCount, color: "text-amber-400", icon: TrendingUp },
         ].map((m, i) => (

@@ -57,12 +57,16 @@ export default function IssuedCredentialsPage() {
   const [revokeReason, setRevokeReason] = useState("");
 
   async function loadCredentials() {
-    if (!currentUser) return;
+    if (!currentUser) {
+      setLoading(false);
+      return;
+    }
     try {
       const list = await CredentialService.getIssuerCredentials(currentUser.uid);
-      setCredentials(list);
+      setCredentials(list || []);
     } catch (e) {
       console.error("Failed to load credentials:", e);
+      setCredentials([]);
     } finally {
       setLoading(false);
     }

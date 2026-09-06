@@ -17,11 +17,11 @@ import { DEMO_STUDENT, DEMO_ACADEMIC_RECORDS, DEMO_ACHIEVEMENTS, DEMO_OPPORTUNIT
 import { motion } from "framer-motion";
 
 const FICO_CLASS = (score: number) => {
-  if (score >= 800) return { label: "Exceptional", color: "text-emerald-400", bg: "bg-emerald-500/10", border: "border-emerald-500/20" };
-  if (score >= 740) return { label: "Very Good", color: "text-teal-400", bg: "bg-teal-500/10", border: "border-teal-500/20" };
-  if (score >= 670) return { label: "Good", color: "text-sky-400", bg: "bg-sky-500/10", border: "border-sky-500/20" };
-  if (score >= 580) return { label: "Fair", color: "text-amber-400", bg: "bg-amber-500/10", border: "border-amber-500/20" };
-  return { label: "Poor", color: "text-rose-400", bg: "bg-rose-500/10", border: "border-rose-500/20" };
+  if (score >= 800) return { label: "Exceptional", color: "text-[#C9944A]", bg: "bg-[#C9944A]/10", border: "border-[#C9944A]/30" };
+  if (score >= 740) return { label: "Very Good", color: "text-[#B65F32]", bg: "bg-[#B65F32]/10", border: "border-[#B65F32]/30" };
+  if (score >= 670) return { label: "Good", color: "text-[#F5F1E8]", bg: "bg-white/10", border: "border-white/20" };
+  if (score >= 580) return { label: "Fair", color: "text-[#D97706]", bg: "bg-amber-500/10", border: "border-amber-500/20" };
+  return { label: "Needs Proofs", color: "text-[#E57373]", bg: "bg-[#9E2A2B]/10", border: "border-[#9E2A2B]/20" };
 };
 
 export default function StudentDashboard() {
@@ -36,46 +36,29 @@ export default function StudentDashboard() {
   const { currentUser } = useAuth();
 
   const loadAuthenticatedData = useCallback(async () => {
-    const demoActive = isDemoUser(currentUser?.email || currentUser?.uid);
-    if (!currentUser && !demoActive) return;
+    if (!currentUser) {
+      setLoading(false);
+      return;
+    }
 
     setLoading(true);
     setError(null);
 
     try {
-      if (demoActive) {
-        // Demo mode — use seeded data, no API calls needed
-        await new Promise(r => setTimeout(r, 600)); // simulate brief load
-        setRecords(DEMO_ACADEMIC_RECORDS);
-        setAchievements(DEMO_ACHIEVEMENTS);
-        setOpportunities(DEMO_OPPORTUNITIES);
-        setTrustScoreData(DEMO_TRUST_SCORE);
-        setStudent({ ...DEMO_STUDENT, isDigiLockerConnected: true });
-        setLoading(false);
-        return;
-      }
-
-      const uid = currentUser!.uid;
+      const uid = currentUser.uid;
       const [rec, ach, opps, score] = await Promise.all([
         StudentService.getAcademicRecords(uid),
         AchievementService.getAchievements(uid),
         OpportunityService.getRecommendations(uid),
         TrustScoreService.getScore(uid)
       ]);
-      setRecords(rec);
-      setAchievements(ach);
-      setOpportunities(opps);
-      setTrustScoreData(score);
-    } catch (err) {
+      setRecords(rec || []);
+      setAchievements(ach || []);
+      setOpportunities(opps || []);
+      setTrustScoreData(score || { total: 300 });
+    } catch (err: any) {
       console.error("Failed to load dashboard data:", err);
-      setError("Some data could not be loaded. Using available information.");
-      // Fallback to demo data on error to keep demo stable
-      if (demoActive) {
-        setRecords(DEMO_ACADEMIC_RECORDS);
-        setAchievements(DEMO_ACHIEVEMENTS);
-        setOpportunities(DEMO_OPPORTUNITIES);
-        setTrustScoreData(DEMO_TRUST_SCORE);
-      }
+      setError(err?.message || "Failed to load complete records from database.");
     } finally {
       setLoading(false);
     }
@@ -83,33 +66,22 @@ export default function StudentDashboard() {
 
   useEffect(() => {
     async function loadStudent() {
-      const demoActive = isDemoUser(currentUser?.email || currentUser?.uid);
-      if (demoActive) {
-        setStudent({ ...DEMO_STUDENT, isDigiLockerConnected: true });
-        await loadAuthenticatedData();
+      if (!currentUser) {
+        setLoading(false);
         return;
       }
-
-      if (!currentUser) return;
       try {
         const s = await StudentService.getProfile(currentUser.uid);
         setStudent(s);
-        if (s?.isDigiLockerConnected) {
-          await loadAuthenticatedData();
-        } else {
-          setLoading(false);
-        }
+        await loadAuthenticatedData();
       } catch (err) {
         console.error("Failed to load student profile:", err);
         setLoading(false);
-        setError("Failed to load profile.");
+        setError("Failed to load profile from database.");
       }
     }
 
-    const demoActive = isDemoUser(currentUser?.email || currentUser?.uid);
-    if (currentUser || demoActive) {
-      loadStudent();
-    }
+    loadStudent();
   }, [currentUser, loadAuthenticatedData]);
 
   const handleDigiLockerComplete = () => {
@@ -121,10 +93,10 @@ export default function StudentDashboard() {
       <div className="flex h-[60vh] items-center justify-center">
         <div className="flex flex-col items-center gap-3">
           <div className="relative">
-            <div className="w-12 h-12 rounded-full border-2 border-blue-500/30 border-t-blue-500 animate-spin" />
-            <ShieldCheck className="w-5 h-5 text-blue-500 absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2" />
+            <div className="w-12 h-12 rounded-full border-2 border-[#B65F32]/30 border-t-[#B65F32] animate-spin" />
+            <ShieldCheck className="w-5 h-5 text-[#B65F32] absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2" />
           </div>
-          <span className="text-xs font-mono text-gray-400 uppercase tracking-widest animate-pulse">
+          <span className="text-xs font-mono text-[#8A847B] uppercase tracking-widest animate-pulse">
             Loading Identity Console...
           </span>
         </div>
@@ -132,19 +104,32 @@ export default function StudentDashboard() {
     );
   }
 
-  // DigiLocker onboarding gate — only shown in non-demo mode when not connected
-  const demoActive = isDemoUser(currentUser?.email || currentUser?.uid);
-  if (!demoActive && !student?.isDigiLockerConnected) {
+  if (!currentUser) {
+    return (
+      <div className="max-w-md mx-auto my-16 text-center space-y-4 font-sans border border-white/5 p-8 rounded-2xl bg-[#111827]">
+        <ShieldCheck className="w-12 h-12 text-blue-500 mx-auto" />
+        <h2 className="text-xl font-bold text-white tracking-tight">Authentication Required</h2>
+        <p className="text-xs text-gray-400 leading-relaxed">Please log in or create an account to view your student identity dashboard and verified credentials.</p>
+        <Link href="/auth/login" className="inline-block">
+          <Button className="bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs h-10 px-6 rounded-xl">
+            Log In to Portal
+          </Button>
+        </Link>
+      </div>
+    );
+  }
+
+  if (!student?.isDigiLockerConnected) {
     return (
       <div className="max-w-2xl mx-auto mt-12 animate-in fade-in duration-500 font-sans">
         <div className="text-center mb-8 space-y-3">
-          <div className="w-14 h-14 bg-blue-600/10 border border-blue-500/20 text-blue-500 rounded-2xl flex items-center justify-center mx-auto shadow-lg">
+          <div className="w-14 h-14 bg-[#B65F32]/10 border border-[#B65F32]/30 text-[#B65F32] rounded-md flex items-center justify-center mx-auto shadow-lg">
             <ShieldCheck className="w-8 h-8" />
           </div>
-          <h1 className="text-3xl font-display font-medium text-white tracking-tight">
+          <h1 className="text-3xl font-heading font-bold text-[#F5F1E8] tracking-tight">
             Welcome, {student?.fullName?.split(" ")?.[0] || student?.name?.split(" ")?.[0] || "Student"}
           </h1>
-          <p className="text-gray-400 text-sm max-w-sm mx-auto leading-relaxed">
+          <p className="text-[#8A847B] text-sm max-w-sm mx-auto leading-relaxed">
             Connect your academic identity to establish a verified professional passport.
           </p>
         </div>
@@ -173,22 +158,6 @@ export default function StudentDashboard() {
           <AlertCircle className="w-4 h-4 shrink-0" />
           <span>{error}</span>
         </div>
-      )}
-
-      {/* Demo Mode Banner */}
-      {demoActive && (
-        <motion.div
-          initial={{ opacity: 0, y: -10 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="flex items-center justify-between px-4 py-3 rounded-xl bg-blue-600/5 border border-blue-500/20"
-        >
-          <div className="flex items-center gap-2.5">
-            <span className="w-2 h-2 rounded-full bg-blue-500 animate-pulse" />
-            <span className="text-xs font-bold text-blue-400 uppercase tracking-widest">Demo Mode Active</span>
-            <span className="text-xs text-gray-400">— Viewing seeded data for Aarav Sharma · IIT Bombay</span>
-          </div>
-          <Badge className="bg-blue-500/10 border-blue-500/20 text-blue-400 text-[10px] font-mono">DEMO</Badge>
-        </motion.div>
       )}
 
       {/* Header */}

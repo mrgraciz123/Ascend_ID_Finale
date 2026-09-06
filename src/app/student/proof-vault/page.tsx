@@ -1,10 +1,10 @@
 "use client";
 
-import { useState, useEffect, useRef, useCallback } from "react";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
+import { useState, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { 
   Upload, 
@@ -12,117 +12,69 @@ import {
   Loader2, 
   CheckCircle2, 
   AlertCircle, 
-  FileText, 
-  FileImage, 
-  Calendar, 
   ExternalLink,
   Trash2,
-  Clock,
-  ShieldCheck
+  ShieldCheck,
+  Filter,
+  Plus,
+  FileText,
+  FileImage,
+  Calendar,
+  Clock
 } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { ProofDocumentService, ProofDocument } from "@/services/proof-document";
 
-interface ToastState {
-  show: boolean;
-  message: string;
-  type: "success" | "error";
-}
-
 export default function ProofVaultPage() {
   const { currentUser, loading: authLoading } = useAuth();
   
-  // List state
   const [documents, setDocuments] = useState<ProofDocument[]>([]);
   const [loadingDocs, setLoadingDocs] = useState(true);
 
-  // Form state
   const [title, setTitle] = useState("");
   const [documentType, setDocumentType] = useState("Certificate");
   const [issuer, setIssuer] = useState("");
   const [impact, setImpact] = useState("");
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
 
-  // Upload/UI status states
   const [uploadStatus, setUploadStatus] = useState<"idle" | "uploading" | "success" | "failed">("idle");
   const [errorMessage, setErrorMessage] = useState("");
-  const [toast, setToast] = useState<ToastState>({ show: false, message: "", type: "success" });
+  const [filterCategory, setFilterCategory] = useState<"all" | "verified" | "pending">("all");
+  const [toast, setToast] = useState<{ show: boolean; message: string; type: "success" | "error" }>({
+    show: false,
+    message: "",
+    type: "success"
+  });
+
+  const showToast = (message: string, type: "success" | "error" = "success") => {
+    setToast({ show: true, message, type });
+    setTimeout(() => setToast({ show: false, message: "", type: "success" }), 4000);
+  };
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Fetch documents from Firestore
-  const fetchDocuments = useCallback(async () => {
+  const fetchDocuments = async () => {
     if (!currentUser) return;
     try {
       setLoadingDocs(true);
       const docs = await ProofDocumentService.getProofDocuments(currentUser.uid);
-      setDocuments(docs);
+      setDocuments(docs || []);
     } catch (error) {
       console.error("Failed to load proof documents:", error);
     } finally {
       setLoadingDocs(false);
     }
-  }, [currentUser]);
+  };
 
   useEffect(() => {
     if (!authLoading && currentUser) {
       fetchDocuments();
+    } else {
+      setLoadingDocs(false);
     }
-  }, [currentUser, authLoading, fetchDocuments]);
+  }, [currentUser, authLoading]);
 
-  // Helper: Show custom toast notification
-  const showToast = (message: string, type: "success" | "error") => {
-    setToast({ show: true, message, type });
-    setTimeout(() => {
-      setToast((prev) => ({ ...prev, show: false }));
-    }, 4000);
-  };
-
-  // Helper: Format file size
-  const formatFileSize = (bytes: number) => {
-    if (bytes === 0) return "0 Bytes";
-    const k = 1024;
-    const sizes = ["Bytes", "KB", "MB"];
-    const i = Math.floor(Math.log(bytes) / Math.log(k));
-    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + " " + sizes[i];
-  };
-
-  // File Picker change handler
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    validateAndSelectFile(file);
-  };
-
-  // Drag and Drop handlers
-  const handleDragOver = (e: React.DragEvent) => {
-    e.preventDefault();
-  };
-
-  const handleDrop = (e: React.DragEvent) => {
-    e.preventDefault();
-    const file = e.dataTransfer.files?.[0];
-    if (!file) return;
-    validateAndSelectFile(file);
-  };
-
-  // Validate file size and type
   const validateAndSelectFile = (file: File) => {
-    setErrorMessage("");
-    setUploadStatus("idle");
-
-    // Diagnostic log
-    console.log("FILE SELECTED", file);
-
-    // Max size: 10 MB
-    const MAX_SIZE = 10 * 1024 * 1024;
-    if (file.size > MAX_SIZE) {
-      setErrorMessage("File is too large. Maximum size allowed is 10MB.");
-      setUploadStatus("failed");
-      showToast("File size exceeds 10MB limit", "error");
-      return;
-    }
-
     // Accepted types: PDF, PNG, JPG, JPEG
     const allowedExtensions = ["pdf", "png", "jpg", "jpeg"];
     const fileExtension = file.name.split(".").pop()?.toLowerCase();
@@ -131,11 +83,29 @@ export default function ProofVaultPage() {
     if (!allowedMimeTypes.includes(file.type) && !allowedExtensions.includes(fileExtension || "")) {
       setErrorMessage("Invalid type. Only PDF, PNG, JPG, and JPEG files are accepted.");
       setUploadStatus("failed");
-      showToast("Invalid file format selected", "error");
       return;
     }
 
     setSelectedFile(file);
+  };
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      validateAndSelectFile(e.target.files[0]);
+    }
+  };
+
+  const handleDragOver = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+  };
+
+  const handleDrop = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+      validateAndSelectFile(e.dataTransfer.files[0]);
+    }
   };
 
   const clearSelectedFile = (e: React.MouseEvent) => {
@@ -206,6 +176,14 @@ export default function ProofVaultPage() {
     }
   };
 
+  const formatFileSize = (bytes: number) => {
+    if (bytes === 0) return "0 Bytes";
+    const k = 1024;
+    const sizes = ["Bytes", "KB", "MB", "GB"];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + " " + sizes[i];
+  };
+
   // Helper: Format Firestore uploadedAt timestamp
   const formatUploadDate = (uploadedAt: any) => {
     if (!uploadedAt) return "Uploading...";
@@ -226,40 +204,43 @@ export default function ProofVaultPage() {
   }
 
   return (
-    <div className="space-y-10 animate-in fade-in duration-500 max-w-5xl mx-auto pb-12">
+    <div className="space-y-10 animate-in fade-in duration-500 max-w-5xl mx-auto pb-12 font-sans">
       <div>
-        <h1 className="text-3xl font-bold text-white tracking-tight">Proof Vault</h1>
-        <p className="text-muted-foreground mt-1">Securely host and cryptographically anchor your professional achievements.</p>
+        <h1 className="text-3xl font-heading font-bold text-[#F5F1E8] tracking-tight flex items-center gap-2.5">
+          <ShieldCheck className="w-8 h-8 text-[#B65F32]" />
+          Proof Vault
+        </h1>
+        <p className="text-[#8A847B] mt-1 text-xs">Securely host and cryptographically anchor your professional proof documents.</p>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-        <Card className="surface-panel md:col-span-2">
+        <Card className="bg-[#191919] border border-[#B65F32]/20 md:col-span-2 rounded-md">
           <CardHeader>
-            <CardTitle className="text-xl text-white">New Vault Entry</CardTitle>
-            <CardDescription>Submit a certificate, project proof, or experience document.</CardDescription>
+            <CardTitle className="text-xl text-[#F5F1E8]">New Vault Entry</CardTitle>
+            <CardDescription className="text-[#8A847B]">Submit a certificate, project proof, or experience document.</CardDescription>
           </CardHeader>
           <form onSubmit={handleUpload}>
             <CardContent className="space-y-6">
               <div className="space-y-2">
-                <Label htmlFor="title" className="text-muted-foreground">Achievement Title</Label>
+                <Label htmlFor="title" className="text-[#8A847B]">Achievement Title</Label>
                 <Input 
                   id="title" 
                   placeholder="e.g. AWS Certified Solutions Architect" 
                   required 
                   value={title}
                   onChange={(e) => setTitle(e.target.value)}
-                  className="bg-background/50 text-white" 
+                  className="bg-[#0D0D0D] text-[#F5F1E8] border-[#B65F32]/20 focus:border-[#B65F32]" 
                 />
               </div>
               
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="type" className="text-muted-foreground">Type</Label>
+                  <Label htmlFor="type" className="text-[#8A847B]">Type</Label>
                   <select 
                     id="type" 
                     value={documentType}
                     onChange={(e) => setDocumentType(e.target.value)}
-                    className="flex h-10 w-full items-center justify-between rounded-md border bg-background/50 px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-primary disabled:cursor-not-allowed disabled:opacity-50"
+                    className="flex h-10 w-full items-center justify-between rounded-md border border-[#B65F32]/20 bg-[#0D0D0D] px-3 py-2 text-sm text-[#F5F1E8] focus:outline-none focus:ring-1 focus:ring-[#B65F32]"
                   >
                     <option value="Certificate">Certificate</option>
                     <option value="Internship">Internship</option>
@@ -268,32 +249,32 @@ export default function ProofVaultPage() {
                   </select>
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="issuer" className="text-muted-foreground">Issuer / Organization</Label>
+                  <Label htmlFor="issuer" className="text-[#8A847B]">Issuer / Organization</Label>
                   <Input 
                     id="issuer" 
                     placeholder="e.g. Amazon Web Services" 
                     required 
                     value={issuer}
                     onChange={(e) => setIssuer(e.target.value)}
-                    className="bg-background/50 text-white" 
+                    className="bg-[#0D0D0D] text-[#F5F1E8] border-[#B65F32]/20" 
                   />
                 </div>
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="impact" className="text-muted-foreground">Impact / Description</Label>
+                <Label htmlFor="impact" className="text-[#8A847B]">Impact / Description</Label>
                 <textarea 
                   id="impact" 
                   value={impact}
                   onChange={(e) => setImpact(e.target.value)}
-                  className="flex min-h-[80px] w-full rounded-md border bg-background/50 px-3 py-2 text-sm text-white placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary disabled:cursor-not-allowed disabled:opacity-50" 
+                  className="flex min-h-[80px] w-full rounded-md border border-[#B65F32]/20 bg-[#0D0D0D] px-3 py-2 text-sm text-[#F5F1E8] placeholder:text-[#8A847B] focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[#B65F32]" 
                   placeholder="Briefly describe what you accomplished..." 
                   required 
                 />
               </div>
 
               <div className="space-y-2">
-                <Label className="text-muted-foreground">Document Proof File</Label>
+                <Label className="text-[#8A847B]">Document Proof File</Label>
                 <input 
                   type="file" 
                   ref={fileInputRef} 
@@ -306,40 +287,39 @@ export default function ProofVaultPage() {
                   onClick={() => fileInputRef.current?.click()}
                   onDragOver={handleDragOver}
                   onDrop={handleDrop}
-                  className="border-2 border-dashed border-muted/50 rounded-xl p-8 flex flex-col items-center justify-center text-center bg-background/30 hover:bg-white/5 transition-colors cursor-pointer"
+                  className="border border-dashed border-[#B65F32]/30 rounded-md p-8 flex flex-col items-center justify-center text-center bg-[#0D0D0D] hover:bg-[#241814] transition-colors cursor-pointer"
                 >
                   {selectedFile ? (
                     <div className="flex flex-col items-center w-full">
                       {selectedFile.type === "application/pdf" ? (
-                        <FileText className="w-10 h-10 text-primary mb-3" />
+                        <FileText className="w-10 h-10 text-[#B65F32] mb-3" />
                       ) : (
-                        <FileImage className="w-10 h-10 text-primary mb-3" />
+                        <FileImage className="w-10 h-10 text-[#B65F32] mb-3" />
                       )}
-                      <p className="text-sm text-white font-medium break-all max-w-md">{selectedFile.name}</p>
-                      <p className="text-xs text-muted-foreground mt-1">{formatFileSize(selectedFile.size)}</p>
+                      <p className="text-sm text-[#F5F1E8] font-medium break-all max-w-md">{selectedFile.name}</p>
+                      <p className="text-xs text-[#8A847B] mt-1 font-mono">{formatFileSize(selectedFile.size)}</p>
                       <Button 
                         type="button" 
                         variant="ghost" 
                         size="sm" 
                         onClick={clearSelectedFile}
-                        className="mt-3 text-destructive hover:bg-destructive/10 h-8 gap-1.5"
+                        className="mt-3 text-[#E57373] hover:bg-[#9E2A2B]/15 h-8 gap-1.5"
                       >
                         <Trash2 className="w-4 h-4" /> Change File
                       </Button>
                     </div>
                   ) : (
                     <>
-                      <FileUp className="w-8 h-8 text-muted-foreground mb-3" />
-                      <p className="text-sm text-white font-medium">Click to upload or drag and drop</p>
-                      <p className="text-xs text-muted-foreground mt-1">PDF, PNG, JPG, or JPEG (max. 10MB)</p>
+                      <FileUp className="w-8 h-8 text-[#B65F32] mb-3" />
+                      <p className="text-sm text-[#F5F1E8] font-medium">Click to upload or drag and drop</p>
+                      <p className="text-xs text-[#8A847B] mt-1 font-mono">PDF, PNG, JPG, or JPEG (max 10MB)</p>
                     </>
                   )}
                 </div>
               </div>
 
-              {/* Error messages block */}
               {errorMessage && (
-                <div className="flex items-center gap-2 p-3 rounded-lg bg-destructive/10 border border-destructive/20 text-destructive text-sm">
+                <div className="flex items-center gap-2 p-3 rounded-md bg-[#9E2A2B]/15 border border-[#9E2A2B]/30 text-[#E57373] text-sm">
                   <AlertCircle className="w-4 h-4 shrink-0" />
                   <span>{errorMessage}</span>
                 </div>
@@ -349,17 +329,15 @@ export default function ProofVaultPage() {
             <CardFooter>
               <Button 
                 type="submit" 
-                className="w-full bg-primary hover:bg-primary/90 text-white h-12 text-base font-semibold" 
+                className="w-full bg-[#B65F32] hover:bg-[#8F4728] text-[#F5F1E8] h-11 text-sm font-semibold rounded-md" 
                 disabled={uploadStatus === "uploading" || !selectedFile}
               >
                 {uploadStatus === "uploading" ? (
-                  <><Loader2 className="mr-2 h-5 w-5 animate-spin" /> Uploading...</>
+                  <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Uploading to Vault...</>
                 ) : uploadStatus === "success" ? (
-                  <><CheckCircle2 className="mr-2 h-5 w-5" /> Upload Success</>
-                ) : uploadStatus === "failed" ? (
-                  <><AlertCircle className="mr-2 h-5 w-5" /> Upload Failed</>
+                  <><CheckCircle2 className="mr-2 h-4 w-4" /> Upload Success</>
                 ) : (
-                  <><Upload className="mr-2 h-5 w-5" /> Submit to Vault</>
+                  <><Upload className="mr-2 h-4 w-4" /> Submit to Vault</>
                 )}
               </Button>
             </CardFooter>
@@ -367,22 +345,22 @@ export default function ProofVaultPage() {
         </Card>
 
         <div className="space-y-6">
-          <Card className="surface-panel">
+          <Card className="bg-[#191919] border border-[#B65F32]/20 rounded-md">
             <CardHeader>
-              <CardTitle className="text-lg text-white">How Verification Works</CardTitle>
+              <CardTitle className="text-lg text-[#F5F1E8]">Verification Workflow</CardTitle>
             </CardHeader>
-            <CardContent className="space-y-4 text-sm text-muted-foreground">
+            <CardContent className="space-y-4 text-sm text-[#8A847B]">
               <div className="flex gap-3">
-                <div className="w-6 h-6 rounded-full bg-primary/20 text-primary flex items-center justify-center shrink-0 border border-primary/30">1</div>
-                <p className="leading-relaxed">Upload your official achievement certificate, project artifact, or hackathon victory file.</p>
+                <div className="w-6 h-6 rounded-md bg-[#B65F32]/15 text-[#B65F32] flex items-center justify-center shrink-0 border border-[#B65F32]/30 font-mono text-xs font-bold">1</div>
+                <p className="leading-relaxed">Upload official achievement certificate or proof file.</p>
               </div>
               <div className="flex gap-3">
-                <div className="w-6 h-6 rounded-full bg-primary/20 text-primary flex items-center justify-center shrink-0 border border-primary/30">2</div>
-                <p className="leading-relaxed">AscendID verifies the document authenticity via cryptographic anchoring and issuer validation.</p>
+                <div className="w-6 h-6 rounded-md bg-[#B65F32]/15 text-[#B65F32] flex items-center justify-center shrink-0 border border-[#B65F32]/30 font-mono text-xs font-bold">2</div>
+                <p className="leading-relaxed">AscendID verifies document authenticity via cryptographic anchoring.</p>
               </div>
               <div className="flex gap-3">
-                <div className="w-6 h-6 rounded-full bg-primary/20 text-primary flex items-center justify-center shrink-0 border border-primary/30">3</div>
-                <p className="leading-relaxed">Once verified, your trust level increases and it gets embedded in your Talent Passport.</p>
+                <div className="w-6 h-6 rounded-md bg-[#C9944A]/15 text-[#C9944A] flex items-center justify-center shrink-0 border border-[#C9944A]/30 font-mono text-xs font-bold">3</div>
+                <p className="leading-relaxed">Verified credentials update your Trust Index Score.</p>
               </div>
             </CardContent>
           </Card>
@@ -399,6 +377,17 @@ export default function ProofVaultPage() {
         {loadingDocs ? (
           <div className="flex justify-center py-12">
             <Loader2 className="w-8 h-8 text-primary animate-spin" />
+          </div>
+        ) : !currentUser ? (
+          <div className="text-center py-16 border rounded-2xl border-white/5 bg-background/20 space-y-4">
+            <ShieldCheck className="w-12 h-12 text-[#B65F32] mx-auto" />
+            <h3 className="text-lg font-medium text-white">Authentication Required</h3>
+            <p className="text-xs text-muted-foreground max-w-sm mx-auto">You are currently in unauthenticated view. Log in to access your personal encrypted Proof Vault.</p>
+            <a href="/auth/login" className="inline-block">
+              <Button className="bg-[#B65F32] hover:bg-[#8F4728] text-white text-xs font-bold px-6 h-9 rounded-lg">
+                Log In to Access Vault
+              </Button>
+            </a>
           </div>
         ) : documents.length === 0 ? (
           <div className="text-center py-16 border rounded-2xl border-white/5 bg-background/20 space-y-3">

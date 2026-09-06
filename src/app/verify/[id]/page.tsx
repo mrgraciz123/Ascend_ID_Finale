@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, use } from "react";
-import { getBlockchainProvider, CredentialOnChainRecord } from "@/lib/blockchain";
+import { CredentialOnChainRecord } from "@/lib/blockchain";
 import { 
   ShieldCheck, 
   AlertTriangle, 
@@ -37,6 +37,7 @@ import { doc, getDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { getSerializedNormalizedMetadata } from "@/lib/normalization";
 import { motion, AnimatePresence } from "framer-motion";
+import { CredentialObject } from "@/components/CredentialObject";
 
 async function calculateSHA256(message: string): Promise<string> {
   try {
@@ -107,9 +108,25 @@ export default function VerificationPage({ params }: { params: Promise<{ id: str
         const computedHash = await calculateSHA256(serialized);
         setRecalculatedHash(computedHash);
 
-        // 2. Fetch Blockchain Record
-        const provider = getBlockchainProvider();
-        const onChain = await provider.getCredentialHash(credentialId);
+        // 2. Fetch Blockchain Record via server endpoint (AscendChainProvider is server-only)
+        let onChain: CredentialOnChainRecord = {
+          hash: "0x0000000000000000000000000000000000000000000000000000000000000000",
+          issuerWallet: "0x0000000000000000000000000000000000000000",
+          isRevoked: false,
+          revocationReason: "",
+          blockTimestamp: 0
+        };
+        try {
+          const chainRes = await fetch(`/api/blockchain/verify?uuid=${encodeURIComponent(credentialId)}`);
+          if (chainRes.ok) {
+            const chainData = await chainRes.json();
+            if (chainData.success && chainData.record) {
+              onChain = chainData.record;
+            }
+          }
+        } catch (chainErr) {
+          console.error("Failed to fetch on-chain record:", chainErr);
+        }
         setOnChainRecord(onChain);
 
         // 3. Verify Cryptographic Digital Signature
@@ -139,38 +156,51 @@ export default function VerificationPage({ params }: { params: Promise<{ id: str
         let score = 0;
 
         // Check A: Metadata Hash Match (Ledger vs Database)
-        const dbHashOk = cred.metadataHash === computedHash || cred.metadataHash !== "invalid";
-        const chainHashOk = onChain.hash.toLowerCase() === computedHash.toLowerCase() || (onChain.hash !== "0x0000000000000000000000000000000000000000000000000000000000000000" && !onChain.hash.includes("invalid"));
+        // Both the Firestore stored hash AND the on-chain hash must equal the freshly computed hash.
+        const ZERO_HASH = "0x0000000000000000000000000000000000000000000000000000000000000000";
+        const dbHashOk = !!cred.metadataHash && cred.metadataHash.toLowerCase() === computedHash.toLowerCase();
+        const isAnchored = onChain.hash !== ZERO_HASH;
+        // AscendChain stores bytes32 — compare as lowercase hex, handling optional 0x prefix
+        const normalizeHash = (h: string) => (h.startsWith("0x") ? h.toLowerCase() : `0x${h}`.toLowerCase());
+        const chainHashMatchesComputed = isAnchored && normalizeHash(onChain.hash) === normalizeHash(computedHash);
+        const chainHashMatchesDb = isAnchored && !!cred.metadataHash && normalizeHash(onChain.hash) === normalizeHash(cred.metadataHash);
+        const hashIntegrityOk = dbHashOk && chainHashMatchesComputed;
         
-        if (dbHashOk && chainHashOk) {
+        if (hashIntegrityOk) {
           score += 30;
           checks.push({
             name: "Metadata Hash Match",
             status: "success",
-            text: "SHA-256 metadata hash matches the on-chain blockchain registry perfectly."
+            text: "SHA-256 metadata hash matches the AscendChain on-chain registry perfectly."
+          });
+        } else if (dbHashOk && !isAnchored) {
+          // Stored in Firestore but not yet on chain (or AscendChain node is offline)
+          checks.push({
+            name: "Metadata Hash Match",
+            status: "warning",
+            text: "Hash found in Firestore but not confirmed on AscendChain. Node may be offline."
           });
         } else {
           checks.push({
             name: "Metadata Hash Match",
             status: "error",
-            text: "Ledger mismatch. Recalculated metadata hash does not match anchored hash."
+            text: "Ledger mismatch. Recalculated hash does not match stored or on-chain hash."
           });
         }
 
         // Check B: Blockchain Anchor Check
-        const isAnchored = onChain.hash !== "0x0000000000000000000000000000000000000000000000000000000000000000";
         if (isAnchored) {
           score += 20;
           checks.push({
             name: "Blockchain Anchoring",
             status: "success",
-            text: `Anchored on Base Sepolia (Block: ${cred.blockchain?.blockNumber || 1205389}).`
+            text: `Anchored on AscendChain Devnet (Chain 13370, Block: ${cred.blockchain?.blockNumber ?? "unknown"}).`
           });
         } else {
           checks.push({
             name: "Blockchain Anchoring",
             status: "warning",
-            text: "Credential hash is missing from blockchain smart contract registry."
+            text: "Credential hash not found in AscendChain contract registry. Node may be offline or credential was issued before AscendChain integration."
           });
         }
 
@@ -259,7 +289,7 @@ export default function VerificationPage({ params }: { params: Promise<{ id: str
       { name: "Metadata Validation", desc: "Normalizing metadata parameters for date/email formatting..." },
       { name: "DigiLocker / Issuer Verification", desc: "Resolving issuer registration status in Registry..." },
       { name: "SHA-256 Hash Generation", desc: "Generating cryptographically secure SHA-256 metadata hash..." },
-      { name: "Blockchain Anchoring", desc: "Querying Base Sepolia ledger for transaction anchoring status..." },
+      { name: "Blockchain Anchoring", desc: "Querying AscendChain Devnet (Chain 13370) for transaction anchoring status..." },
       { name: "Block Confirmation", desc: "Verifying block numbers and consensus finality..." },
       { name: "Digital Signature Verification", desc: "Validating EIP-191 digital signature using recovered address..." },
       { name: "Trust Score Calculation", desc: "Recalculating student Trust Score based on latest telemetry..." },
@@ -267,20 +297,16 @@ export default function VerificationPage({ params }: { params: Promise<{ id: str
     ];
 
     return (
-      <div className="min-h-screen bg-[#0B1020] text-white flex flex-col items-center justify-center p-6 sm:p-8 select-none font-sans">
-        {/* Background glow */}
-        <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-blue-600/5 blur-[150px] rounded-full pointer-events-none" />
-        
-        <div className="max-w-xl w-full bg-[#111827] border border-white/5 rounded-[20px] p-6 sm:p-8 space-y-6 shadow-2xl relative overflow-hidden">
-          <div className="absolute top-0 right-0 w-32 h-32 bg-blue-600/5 rounded-full blur-[20px] pointer-events-none" />
+      <div className="min-h-screen bg-[#0D0D0D] text-[#F5F1E8] flex flex-col items-center justify-center p-6 sm:p-8 select-none font-sans">
+        <div className="max-w-xl w-full bg-[#191919] border border-[#B65F32]/20 rounded-md p-6 sm:p-8 space-y-6 shadow-2xl relative overflow-hidden">
           
-          <div className="flex items-center gap-3.5 border-b border-white/5 pb-4">
-            <div className="w-10 h-10 rounded-xl bg-blue-600/10 border border-blue-500/20 flex items-center justify-center shrink-0">
-              <Loader2 className="w-5 h-5 text-blue-500 animate-spin" />
+          <div className="flex items-center gap-3.5 border-b border-[#B65F32]/20 pb-4">
+            <div className="w-10 h-10 rounded-md bg-[#B65F32]/15 border border-[#B65F32]/30 flex items-center justify-center shrink-0">
+              <Loader2 className="w-5 h-5 text-[#B65F32] animate-spin" />
             </div>
             <div>
-              <h2 className="text-xs font-bold tracking-widest text-gray-400 uppercase font-mono">Cryptographic Pipeline</h2>
-              <p className="text-[10px] text-blue-400 font-mono mt-0.5 animate-pulse">Anchoring telemetry on Base Sepolia...</p>
+              <h2 className="text-xs font-bold tracking-widest text-[#8A847B] uppercase font-mono">Cryptographic Pipeline</h2>
+              <p className="text-[10px] text-[#C9944A] font-mono mt-0.5 animate-pulse">Verifying on AscendChain Devnet (Chain 13370)...</p>
             </div>
           </div>
 
@@ -292,21 +318,21 @@ export default function VerificationPage({ params }: { params: Promise<{ id: str
                 <div key={idx} className={`flex items-start gap-3 transition-opacity duration-300 ${isDone ? "opacity-100" : isCurrent ? "opacity-100" : "opacity-35"}`}>
                   <div className="shrink-0 mt-0.5">
                     {isDone ? (
-                      <span className="text-emerald-400 font-bold">✔</span>
+                      <span className="text-[#C9944A] font-bold">✔</span>
                     ) : isCurrent ? (
-                      <Loader2 className="w-3.5 h-3.5 text-blue-500 animate-spin" />
+                      <Loader2 className="w-3.5 h-3.5 text-[#B65F32] animate-spin" />
                     ) : (
-                      <span className="text-gray-600">•</span>
+                      <span className="text-[#8A847B]">•</span>
                     )}
                   </div>
                   <div className="space-y-0.5">
                     <div className="font-bold flex items-center gap-2">
-                      <span className={isDone ? "text-emerald-400 font-sans" : isCurrent ? "text-blue-400 font-sans" : "text-gray-500 font-sans"}>
+                      <span className={isDone ? "text-[#C9944A] font-sans" : isCurrent ? "text-[#B65F32] font-sans" : "text-[#8A847B] font-sans"}>
                         {s.name}
                       </span>
-                      {isDone && <Badge className="text-[8px] bg-emerald-500/10 text-emerald-400 border-emerald-500/20 px-1 py-0 hover:none rounded">OK</Badge>}
+                      {isDone && <Badge className="text-[8px] bg-[#C9944A]/15 text-[#C9944A] border-[#C9944A]/30 px-1 py-0 rounded">OK</Badge>}
                     </div>
-                    {isCurrent && <p className="text-[10px] text-gray-400 font-sans leading-normal mt-0.5">{s.desc}</p>}
+                    {isCurrent && <p className="text-[10px] text-[#8A847B] font-sans leading-normal mt-0.5">{s.desc}</p>}
                   </div>
                 </div>
               );
@@ -314,18 +340,18 @@ export default function VerificationPage({ params }: { params: Promise<{ id: str
           </div>
 
           {credential && (
-            <div className="bg-[#0B1020]/80 border border-white/5 p-4 rounded-xl font-mono text-[10px] text-gray-400 space-y-2">
+            <div className="bg-[#0D0D0D] border border-[#B65F32]/20 p-4 rounded-md font-mono text-[10px] text-[#8A847B] space-y-2">
               <div className="flex justify-between items-center">
                 <span>Transaction Hash:</span>
-                <span className="text-blue-400 truncate max-w-[200px]">{credential.blockchain?.transactionHash || "0x98a126ed72bb821cc092b3aee1097fa623bcaee8"}</span>
+                <span className="text-[#B65F32] truncate max-w-[200px]">{credential.blockchain?.transactionHash || "0x98a126ed72bb821cc092b3aee1097fa623bcaee8"}</span>
               </div>
               <div className="flex justify-between items-center">
                 <span>Block Number:</span>
-                <span className="text-white">{credential.blockchain?.blockNumber || 1205389}</span>
+                <span className="text-[#F5F1E8]">{credential.blockchain?.blockNumber || 1205389}</span>
               </div>
               <div className="flex justify-between items-center">
                 <span>Confidence Score:</span>
-                <span className="text-emerald-400 font-bold">{cryptoConfidenceScore}%</span>
+                <span className="text-[#C9944A] font-bold">{cryptoConfidenceScore}%</span>
               </div>
             </div>
           )}
@@ -408,11 +434,13 @@ export default function VerificationPage({ params }: { params: Promise<{ id: str
       text: `Normalized SHA-256 metadata hash calculated: ${recalculatedHash.substring(0, 12)}...`
     },
     {
-      name: "Anchored on Base Sepolia",
-      status: "success",
+      name: "Anchored on AscendChain Devnet",
+      status: onChainRecord && onChainRecord.hash !== "0x0000000000000000000000000000000000000000000000000000000000000000" ? "success" : "warning",
       icon: Database,
       timestamp: credential.blockchain?.anchoredAt ? new Date(credential.blockchain.anchoredAt).toLocaleString() : new Date(credential.issueDate).toLocaleString(),
-      text: `Transaction hash ${credential.blockchain?.transactionHash?.substring(0, 10) || "0x..."}... confirmed in smart contract registry.`
+      text: onChainRecord && onChainRecord.hash !== "0x0000000000000000000000000000000000000000000000000000000000000000"
+        ? `Tx ${credential.blockchain?.transactionHash?.substring(0, 18) || "0x..."}... confirmed on AscendChain (Chain 13370).`
+        : "AscendChain node may be offline. Transaction pending confirmation."
     },
     {
       name: "Cryptographically Verified",
@@ -487,81 +515,19 @@ export default function VerificationPage({ params }: { params: Promise<{ id: str
           {/* COLUMN 1: Document View & AI Document Analysis */}
           <div className="lg:col-span-5 space-y-6">
             
-            {/* Visual Certificate Rendering */}
-            <Card className="bg-[#111827] border border-white/5 rounded-[20px] overflow-hidden shadow-2xl relative">
-              <CardHeader className="p-6 pb-3">
-                <CardTitle className="text-xs font-bold text-gray-400 uppercase tracking-widest flex items-center gap-2 font-mono">
-                  <Award className="w-4 h-4 text-blue-500" />
-                  Credential Document Source
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="p-6 pt-0">
-                
-                {/* Physical Certificate Render */}
-                <div className="relative border border-white/10 bg-gradient-to-br from-[#111827] to-[#0B1020] rounded-2xl p-6 overflow-hidden aspect-[1.414/1] flex flex-col justify-between group shadow-inner">
-                  {/* Watermark */}
-                  <div className="absolute inset-0 opacity-[0.02] pointer-events-none flex items-center justify-center">
-                    <QrCode className="w-64 h-64 rotate-12" />
-                  </div>
-                  
-                  {/* Corner borders decoration */}
-                  <div className="absolute top-3 left-3 w-4 h-4 border-t border-l border-white/10" />
-                  <div className="absolute top-3 right-3 w-4 h-4 border-t border-r border-white/10" />
-                  <div className="absolute bottom-3 left-3 w-4 h-4 border-b border-l border-white/10" />
-                  <div className="absolute bottom-3 right-3 w-4 h-4 border-b border-r border-white/10" />
-                  
-                  <div className="flex justify-between items-start text-[8px] text-gray-400 pb-2 border-b border-white/5 font-mono">
-                    <span>ASCENDID BLOCKCHAIN TRUST NETWORK</span>
-                    <span>{credential.id.substring(0, 10)}...</span>
-                  </div>
-
-                  <div className="text-center my-3 space-y-1">
-                    <span className="text-[7px] text-blue-400 uppercase font-bold tracking-widest block font-mono">Verifiable Credential Document</span>
-                    <h3 className="text-sm font-bold text-white leading-tight uppercase tracking-tight truncate px-2">{credential.title}</h3>
-                  </div>
-
-                  <div className="text-center my-2 space-y-0.5">
-                    <span className="text-[8px] text-gray-400 uppercase block">Presented to</span>
-                    <h4 className="text-xs font-bold text-white tracking-wide">{credential.studentName}</h4>
-                    <p className="text-[8px] text-gray-400 truncate font-mono">ID: {credential.studentId || "External Candidate"}</p>
-                  </div>
-
-                  <div className="flex justify-between items-end border-t border-white/5 pt-3 mt-1 text-[8px] text-gray-400">
-                    <div>
-                      <span className="block text-[7px] text-gray-400 uppercase">Authorized Issuer</span>
-                      <span className="font-bold text-white mt-0.5 block truncate max-w-[150px]">{credential.issuerName}</span>
-                    </div>
-                    
-                    {/* Stamp */}
-                    <div className="flex flex-col items-center">
-                      <div className={`w-10 h-10 rounded-full border flex items-center justify-center shrink-0 shadow-lg ${
-                        isRevoked 
-                          ? "border-red-500/40 text-red-500 bg-red-500/5 rotate-[-12deg]" 
-                          : isExpired 
-                            ? "border-amber-500/40 text-amber-400 bg-amber-500/5 rotate-[-12deg]"
-                            : "border-emerald-500/40 text-emerald-400 bg-emerald-500/5 rotate-[-12deg]"
-                      }`}>
-                        {isRevoked ? (
-                          <ShieldAlert className="w-5.5 h-5.5 animate-pulse" />
-                        ) : (
-                          <ShieldCheck className="w-5.5 h-5.5" />
-                        )}
-                      </div>
-                      <span className="text-[6px] font-black text-white mt-1 uppercase tracking-widest">
-                        {isRevoked ? "Revoked" : isExpired ? "Expired" : "Verified"}
-                      </span>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="bg-[#0B1020]/50 border border-white/5 p-3 rounded-xl mt-4 text-xs text-gray-400 flex items-center justify-between">
-                  <span>Document Storage Source:</span>
-                  <Badge variant="outline" className="border-emerald-500/20 text-emerald-400 bg-emerald-500/5 uppercase font-mono text-[9px] hover:none rounded">
-                    {credential.documentUrl ? "Cloudinary CDN Secure" : "Registry Seed Record"}
-                  </Badge>
-                </div>
-              </CardContent>
-            </Card>
+            {/* Visual Certificate Rendering via CredentialObject */}
+            <CredentialObject
+              id={credential.id}
+              title={credential.title}
+              recipientName={credential.studentName}
+              issuerName={credential.issuerName}
+              issueDate={credential.issueDate}
+              expiryDate={credential.expiryDate}
+              credentialType={credential.credentialType}
+              status={credential.status || "verified"}
+              txHash={credential.blockchain?.transactionHash}
+              skills={credential.skills || ["Verified Identity", "Cryptographic Anchor"]}
+            />
 
             {/* AI Document Analysis Card */}
             <Card className="bg-[#111827] border border-white/5 rounded-[20px] overflow-hidden">
@@ -860,29 +826,20 @@ export default function VerificationPage({ params }: { params: Promise<{ id: str
                   </div>
                   <div>
                     <span className="text-gray-400 block font-sans uppercase font-bold tracking-widest text-[9px] mb-1">Ledger Status</span>
-                    <span className="text-emerald-400 font-bold flex items-center gap-1.5">
-                      <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse shrink-0" />
-                      Confirmed (Base Sepolia)
+                    <span className={`font-bold flex items-center gap-1.5 ${onChainRecord && onChainRecord.hash !== "0x0000000000000000000000000000000000000000000000000000000000000000" ? "text-emerald-400" : "text-amber-400"}`}>
+                      <span className={`w-2 h-2 rounded-full shrink-0 ${onChainRecord && onChainRecord.hash !== "0x0000000000000000000000000000000000000000000000000000000000000000" ? "bg-emerald-500 animate-pulse" : "bg-amber-500"}`} />
+                      {onChainRecord && onChainRecord.hash !== "0x0000000000000000000000000000000000000000000000000000000000000000" ? "Confirmed (AscendChain)" : "Pending"}
                     </span>
                   </div>
 
                   {credential.blockchain?.transactionHash && (
-                    <div className="col-span-full pt-3 flex justify-between items-center border-t border-white/5 mt-2">
+                    <div className="col-span-full pt-3 flex flex-col gap-1.5 border-t border-white/5 mt-2">
                       <span className="text-[9px] text-gray-500">
-                        {credential.blockchain.transactionHash.startsWith("mock") 
-                          ? "Offline Mock Sandbox Network" 
-                          : "Live Blockchain Confirmation: 1+ blocks"}
+                        AscendChain Devnet · Chain ID 13370 · Sovereign EVM
                       </span>
-                      {!credential.blockchain.transactionHash.startsWith("mock") && (
-                        <a 
-                          href={`https://sepolia.basescan.org/tx/${credential.blockchain.transactionHash}`} 
-                          target="_blank" 
-                          rel="noopener noreferrer"
-                          className="inline-flex items-center gap-1 text-[10px] text-blue-400 hover:underline"
-                        >
-                          <ExternalLink className="w-3.5 h-3.5" /> View on BaseScan
-                        </a>
-                      )}
+                      <span className="text-[10px] font-mono text-gray-400 break-all select-all">
+                        {credential.blockchain.transactionHash}
+                      </span>
                     </div>
                   )}
                 </div>
@@ -955,7 +912,7 @@ export default function VerificationPage({ params }: { params: Promise<{ id: str
       </div>
 
       <div className="text-center text-xs text-gray-600 mt-12">
-        © {new Date().getFullYear()} AscendID Verifier Node. Cryptographically anchored on Base Sepolia.
+        © {new Date().getFullYear()} AscendID Verifier Node. Cryptographically anchored on AscendChain Devnet (Chain 13370).
       </div>
     </div>
   );

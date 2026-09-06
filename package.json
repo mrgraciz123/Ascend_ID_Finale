@@ -7,7 +7,11 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "seed": "tsx scripts/seed/seed.ts"
+    "seed": "tsx scripts/seed/seed.ts",
+    "ascendchain:node": "hardhat node --port 8545",
+    "ascendchain:deploy": "hardhat run scripts/deploy-ascendchain.js --network ascendchain",
+    "ascendchain:health": "tsx scripts/ascendchain-health.ts",
+    "ascendchain:test": "hardhat run scripts/ascendchain-test.js --network ascendchain"
   },
   "dependencies": {
     "@base-ui/react": "^1.5.0",

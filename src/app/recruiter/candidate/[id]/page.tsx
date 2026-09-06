@@ -49,21 +49,25 @@ export default function CandidateProfile({ params }: { params: Promise<{ id: str
 
   useEffect(() => {
     async function load() {
-      // In demo mode or fallback, find candidate from local seeded data
-      let found = DEMO_RECRUITER_CANDIDATES.find(c => c.id === id);
-      
-      // If user typed some random ID, just fallback to Aarav for demo robustness
-      const demoActive = isDemoUser(currentUser?.email || currentUser?.uid);
-      if (!found && demoActive) found = DEMO_RECRUITER_CANDIDATES[0];
-
-      if (found) {
-        setCandidate(found);
-      } else {
-        // Here you would do the real Firestore lookup in a full production app
-        // StudentService.getProfile(id)...
-        setCandidate(null);
+      if (!id) {
+        setLoading(false);
+        return;
       }
-      setLoading(false);
+
+      try {
+        const { StudentService } = await import("@/services/student");
+        const profile = await StudentService.getProfile(id);
+        if (profile && profile.id && profile.name !== "Anonymous Student") {
+          setCandidate(profile);
+        } else {
+          setCandidate(null);
+        }
+      } catch (e) {
+        console.error("Error fetching candidate profile:", e);
+        setCandidate(null);
+      } finally {
+        setLoading(false);
+      }
     }
     load();
   }, [id]);

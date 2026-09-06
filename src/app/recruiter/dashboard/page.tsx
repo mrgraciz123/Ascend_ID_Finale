@@ -55,27 +55,32 @@ export default function RecruiterDashboard() {
 
   useEffect(() => {
     async function load() {
-      // In demo mode, use central demo data directly without any Firestore calls
-      const demoActive = isDemoUser(currentUser?.email || currentUser?.uid);
-      if (demoActive) {
-        await new Promise(r => setTimeout(r, 500));
-        setCandidates(DEMO_RECRUITER_CANDIDATES);
+      if (!currentUser) {
         setLoading(false);
         return;
       }
 
-      // In production mode, try to load from Firestore with demo data fallback
       try {
-        // Future: implement real candidate listing with permissions
-        setCandidates(DEMO_RECRUITER_CANDIDATES);
+        const { collection, getDocs } = await import("firebase/firestore");
+        const { db } = await import("@/lib/firebase");
+        const { StudentService } = await import("@/services/student");
+        
+        const snap = await getDocs(collection(db, "students"));
+        const list: any[] = [];
+        snap.forEach((docSnap) => {
+          const data = docSnap.data();
+          list.push(StudentService.normalizeCandidate(data, docSnap.id));
+        });
+        setCandidates(list);
       } catch (e) {
-        console.warn("Could not load candidates from Firestore, using seeded data:", e);
+        console.error("Failed to load students from Firestore:", e);
+        setCandidates([]);
       } finally {
         setLoading(false);
       }
     }
     load();
-  }, []);
+  }, [currentUser]);
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
