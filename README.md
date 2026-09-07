@@ -197,15 +197,17 @@ NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET=your-project.appspot.com
 NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=your-sender-id
 NEXT_PUBLIC_FIREBASE_APP_ID=your-app-id
 
-# Blockchain Configuration (RPC & Authority Key)
-BLOCKCHAIN_PRIVATE_KEY=your-evm-private-key
-BLOCKCHAIN_RPC_URL=https://sepolia.base.org
-NEXT_PUBLIC_BLOCKCHAIN_CONTRACT_ADDRESS=your-credential-registry-address
+# AscendChain Sovereign Blockchain Configuration (Devnet Chain ID: 13370)
+USE_ASCENDCHAIN=true
+ASCENDCHAIN_RPC_URL=http://127.0.0.1:8545
+ASCENDCHAIN_CONTRACT_ADDRESS=0x5FbDB2315678afecb367f032d93F642f64180aa3
+ASCENDCHAIN_PRIVATE_KEY=your-ascendchain-signing-key
+ASCENDCHAIN_ISSUER_ADDRESS=0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266
 
 # AI Auditing Key
 GEMINI_API_KEY=your-google-gemini-api-key
 ```
-*Note: If no blockchain keys are configured, the app automatically runs in Mock Mode, simulating ledger confirmations isomorphic to local memory.*
+*Note: If no blockchain keys are configured, the app will fail clearly in production or use unit test sandbox when explicitly enabled.*
 
 ### 3. Seed Database
 Populate Firestore with a realistic National Dataset (20 Universities, 15 Companies, 100 Students, 1200 Credentials, 50 Tampered Items):
@@ -214,11 +216,11 @@ $env:GOOGLE_APPLICATION_CREDENTIALS="path/to/service-account.json"
 npm run seed
 ```
 
-### 4. Deploy Smart Contract (Optional)
-Deploy contract registry on Base Sepolia using Hardhat:
+### 4. Run AscendChain Node & Deploy Contract
+Start the local AscendChain Devnet node and deploy the CredentialRegistry:
 ```bash
-npx hardhat compile
-npx hardhat run scripts/deploy.ts --network base-sepolia
+npm run ascendchain:node
+npm run ascendchain:deploy
 ```
 
 ### 5. Launch Development Server
@@ -239,9 +241,9 @@ For presentation pitches and live judging reviews, we have implemented an **Auto
 3. Watch the system perform live tasks:
    - IIT Bombay issues degree (triggers `/api/credentials/anchor`).
    - Student passport receives a push alert.
-   - Cryptographic verification verifies signature hashes.
-   - Base Sepolia blockchain confirms block heights.
-   - Student's Trust Score FICO needle dial jumps to `785` (recalculated live).
+   - Cryptographic audit verifies secp256k1 signature hashes.
+   - AscendChain Devnet confirms block heights and immutable receipt.
+   - Student's Trust Score needle recalculates live to `785` (Exceptional).
    - Recruiter searches candidate, reviews verification lock, shortlists applicant.
    - Student receives an automated placement offer from Google India!
 4. Presenters can **Pause / Resume** the simulation or adjust step pacing speeds dynamically during the pitch.
