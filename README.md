@@ -299,9 +299,9 @@ Recruiter Verification
 
 ---
 
-## 🏆  Confluence 2.0 · Hackathon
+## 🏆 Smart India Hackathon (SIH 2026)
 
-**Team Name:** Tech_Lababdar
+**Problem Statement ID:** SIH26044
 
 **Project:** AscendID
 
