@@ -148,7 +148,7 @@ export function CredentialObject({
               )}
             </div>
             <p className="text-[10px] text-[#8A847B] font-mono truncate max-w-xs">
-              DID: did:ascendid:{id}
+              Identifier: did:ascendid:{id}
             </p>
           </div>
         </div>
@@ -156,7 +156,7 @@ export function CredentialObject({
         <div className="flex items-center gap-2">
           {scoreImpact && (
             <Badge className="bg-[#C9944A]/15 text-[#C9944A] border-[#C9944A]/30 text-xs font-mono font-bold">
-              +{scoreImpact} FICO
+              +{scoreImpact} Trust Impact
             </Badge>
           )}
           <Badge className={`text-xs font-mono font-bold uppercase tracking-wider px-3 py-1 rounded-md ${
@@ -249,7 +249,7 @@ export function CredentialObject({
           <div>
             <span className="text-[10px] font-mono text-[#524E48] uppercase block">Blockchain Proof Anchor</span>
             <span className="font-mono text-[11px] font-bold text-[#B65F32] truncate block mt-0.5" title={txHash || id}>
-              {txHash ? `${txHash.slice(0, 12)}...` : `Base Sepolia #${id.slice(0, 8)}`}
+              {txHash ? `${txHash.slice(0, 12)}...` : `AscendChain #${id.slice(0, 8)}`}
             </span>
           </div>
         </div>

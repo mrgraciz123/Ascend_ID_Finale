@@ -39,7 +39,7 @@ const STAGES = [
   { id: 1, title: "University Issues Degree", subtitle: "IIT Bombay anchors credential", color: "text-indigo-400" },
   { id: 2, title: "Student Receives Alert", subtitle: "Push notification dispatched", color: "text-amber-400" },
   { id: 3, title: "Cryptographic Audit", subtitle: "Signature & context check", color: "text-sky-400" },
-  { id: 4, title: "Blockchain Update", subtitle: "Base Sepolia verification block", color: "text-emerald-400" },
+  { id: 4, title: "Blockchain Update", subtitle: "AscendChain verification block", color: "text-emerald-400" },
   { id: 5, title: "Trust Engine Calculation", subtitle: "Trust score recalculates live", color: "text-fuchsia-400" },
   { id: 6, title: "Recruiter Query Match", subtitle: "AI ranks candidate pool", color: "text-indigo-400" },
   { id: 7, title: "Verification Checkpoint", subtitle: "Zero-tampering audit success", color: "text-emerald-400" },
@@ -78,63 +78,14 @@ export default function DemoSimulatorPage() {
     consoleEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [logs]);
 
-  // Seed or verify Aarav Sharma (student-123) in Firestore at start
+  // Seed or verify Aarav Sharma (student-123) simulation state at start
   const ensureAaravSharmaExists = async () => {
     setIsSeeding(true);
-    addLog("[KERNEL] Handshaking database environment...", "info");
+    addLog("[KERNEL] Initializing sandbox environment...", "info");
     try {
-      // 1. Create candidate user document
-      const userRef = doc(db, "users", "student-123");
-      await setDoc(userRef, {
-        uid: "student-123",
-        email: "aarav.sharma@example.com",
-        displayName: "Aarav Sharma",
-        photoURL: "https://i.pravatar.cc/150?u=aarav-sharma-123",
-        role: "student",
-        createdAt: serverTimestamp()
-      }, { merge: true });
-
-      // 2. Create student profile document with base trust score
-      const studentRef = doc(db, "students", "student-123");
-      await setDoc(studentRef, {
-        uid: "student-123",
-        fullName: "Aarav Sharma",
-        email: "aarav.sharma@example.com",
-        studentEmail: "aarav.sharma@example.com",
-        institution: "IIT Bombay",
-        university: "IIT Bombay",
-        degree: "B.Tech in Computer Science & Engineering",
-        major: "Computer Science and Engineering",
-        graduationYear: "2026",
-        avatar: "https://i.pravatar.cc/150?u=aarav-sharma-123",
-        skills: ["React", "TypeScript", "Node.js", "Python", "Algorithms", "Firebase", "Docker"],
-        profileCompletion: 95,
-        isDigiLockerConnected: true,
-        location: "Mumbai, India",
-        interests: ["Full-Stack Development", "Blockchain", "Cloud Computing"],
-        projects: [
-          { name: "AscendID Protocol", description: "Decentralized trust layer for talent credentials on Base Sepolia blockchain.", tech: "Solidity, Next.js, Viem" }
-        ],
-        trustScore: 710,
-        trustFactors: {
-          issuerReputation: 85,
-          credentialFreshness: 75,
-          credentialImportance: 80,
-          fraudProbability: 95,
-          skillConsistency: 80,
-          experienceGrowth: 75,
-          peerValidation: 70,
-          verificationConfidence: 80,
-          openSourceActivity: 60,
-          researchActivity: 50,
-          hackathonPerformance: 70,
-          internshipQuality: 75
-        }
-      }, { merge: true });
-
-      addLog("[FIRESTORE] Synchronized Aarav Sharma's candidate profile (student-123). Base Trust Score: 710 FICO.", "success");
+      addLog("[SANDBOX] Loaded candidate profile: Aarav Sharma (student-123). Base Trust Score: 710.", "success");
     } catch (e: any) {
-      addLog(`[WARNING] Firestore setup fallback active: ${e.message || e}`, "warning");
+      addLog(`[WARNING] Sandbox setup fallback: ${e.message || e}`, "warning");
     } finally {
       setIsSeeding(false);
     }
@@ -181,8 +132,8 @@ export default function DemoSimulatorPage() {
         break;
       case 4:
         // Stage 4: Ledger Confirmation
-        addLog(`[BLOCKCHAIN] Mining confirmation on Base Sepolia. Block height: #14,923,412.`, "blockchain");
-        addLog(`[BLOCKCHAIN] Tx receipt indexed: ${blockchainHash || "0x7d39ae92f80c651ad506ab1a87e502cfaee88732"}`, "blockchain");
+        addLog(`[BLOCKCHAIN] Mining confirmation on AscendChain Devnet (Chain 13370). Block height: #2,546.`, "blockchain");
+        addLog(`[BLOCKCHAIN] Tx receipt indexed: ${blockchainHash || "0x82140218f9dce93235f2159dc2253dd60312143ac65f367b8f39eb12d127030b"}`, "blockchain");
         break;
       case 5:
         // Stage 5: Trust score recalculated
@@ -240,7 +191,7 @@ export default function DemoSimulatorPage() {
         setAnchoredId(result.id);
         setBlockchainHash(result.transactionHash);
         addLog(`[FIRESTORE] Saved W3C record. Document UUID: ${result.id}`, "success");
-        addLog(`[LEDGER] anchored on Base Sepolia. Hash: ${result.transactionHash.slice(0, 20)}...`, "blockchain");
+        addLog(`[LEDGER] Anchored on AscendChain Devnet (Chain 13370). Hash: ${result.transactionHash.slice(0, 20)}...`, "blockchain");
       } else {
         throw new Error(result.error || "Failed to anchor");
       }
@@ -268,7 +219,7 @@ export default function DemoSimulatorPage() {
       const result = await response.json();
       if (result.success) {
         setStudentScore(result.total);
-        addLog(`[TRUST ENGINE] Recalculated index: ${result.total} FICO score.`, "success");
+        addLog(`[TRUST ENGINE] Recalculated index: ${result.total} Ascend Trust Score.`, "success");
         addLog(`[TRUST ENGINE] Analysis: ${result.explanation}`, "info");
       } else {
         throw new Error("Calculation failed");
@@ -340,6 +291,14 @@ export default function DemoSimulatorPage() {
       <div className="absolute top-0 right-0 w-[600px] h-[600px] bg-indigo-500/10 blur-[180px] rounded-full pointer-events-none" />
       <div className="absolute bottom-0 left-0 w-[500px] h-[500px] bg-emerald-500/5 blur-[150px] rounded-full pointer-events-none" />
 
+      {/* SIMULATION ISOLATION BANNER */}
+      <div className="mb-4 bg-amber-500/10 border border-amber-500/30 rounded-lg p-3 text-center text-xs font-mono text-amber-300 flex flex-col sm:flex-row items-center justify-between gap-2 z-20">
+        <span className="font-bold">⚠️ DEMO / SIMULATION — NOT LIVE CREDENTIAL STATE</span>
+        <span className="text-[11px] text-amber-200/80">
+          For live on-chain issuance and verification, use the <Link href="/issuer/issue" className="underline font-bold text-white hover:text-amber-200">Issuer Console</Link> and <Link href="/verify" className="underline font-bold text-white hover:text-amber-200">Public Verifier</Link>.
+        </span>
+      </div>
+
       {/* HEADER SECTION */}
       <header className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6 z-10 border-b border-white/5 pb-4">
         <div>
@@ -350,11 +309,11 @@ export default function DemoSimulatorPage() {
             <span className="text-sm font-medium tracking-wide uppercase font-heading">
               AscendID Presentation Simulator
             </span>
-            <Badge className="bg-emerald-500/10 border-emerald-500/20 text-emerald-400 font-bold px-2 py-0.5 text-[10px]">
-              HACKATHON MODE
+            <Badge className="bg-amber-500/10 border-amber-500/20 text-amber-400 font-bold px-2 py-0.5 text-[10px]">
+              SANDBOX SIMULATION
             </Badge>
           </div>
-          <p className="text-xs text-muted-foreground mt-1">One-click live presentation simulation. Auto-runs W3C credential cycles, Base Sepolia blockchain state mapping, and recruiter shortlisting.</p>
+          <p className="text-xs text-muted-foreground mt-1">One-click sandbox presentation simulation. Visualizes W3C credential cycles, AscendChain Devnet state mapping, and recruiter shortlisting.</p>
         </div>
 
         {/* CONTROLLER MODULE */}
@@ -561,7 +520,7 @@ export default function DemoSimulatorPage() {
                         <p className="text-[10px] text-muted-foreground mt-1">Generating SHA-256 hash and server-side private key signature.</p>
                       </div>
                       <Button className="w-full bg-indigo-500 text-white font-bold h-9 text-xs rounded-md shadow-lg pointer-events-none">
-                        {apiLoading ? "Anchoring on Base Sepolia Ledger..." : "Issued Successfully"}
+                        {apiLoading ? "Anchoring on AscendChain Devnet..." : "Issued Successfully"}
                       </Button>
                     </div>
                   </div>
@@ -689,7 +648,7 @@ export default function DemoSimulatorPage() {
                   <div className="flex justify-between items-center border-b border-white/5 pb-4">
                     <div className="flex items-center gap-2.5">
                       <Cpu className="w-5 h-5 text-indigo-400" />
-                      <span className="text-sm font-black text-white">Base Sepolia Block Explorer Interface</span>
+                      <span className="text-sm font-black text-white">AscendChain Devnet Block Explorer Interface</span>
                     </div>
                     <Badge className="bg-emerald-500/10 border-emerald-500/20 text-emerald-400">LEDGER ANCHORED</Badge>
                   </div>
@@ -775,7 +734,7 @@ export default function DemoSimulatorPage() {
                       <div className="relative w-36 h-36 flex flex-col items-center justify-center">
                         {/* Dynamic glow text */}
                         <span className="text-5xl font-black text-white tracking-tight animate-pulse">{studentScore}</span>
-                        <span className="text-[10px] text-muted-foreground font-bold tracking-wider uppercase mt-1">FICO Trust Index</span>
+                        <span className="text-[10px] text-muted-foreground font-bold tracking-wider uppercase mt-1">Ascend Trust Index</span>
                         <Badge className="mt-2 bg-emerald-500/10 border-emerald-500/20 text-emerald-400 font-bold text-[9px] px-2 py-0.5">
                           EXCEPTIONAL
                         </Badge>
@@ -872,7 +831,7 @@ export default function DemoSimulatorPage() {
 
                             <div className="flex items-center gap-4 text-right">
                               <div>
-                                <span className="text-[9px] text-muted-foreground uppercase block font-bold">FICO Trust</span>
+                                <span className="text-[9px] text-muted-foreground uppercase block font-bold">Ascend Trust</span>
                                 <span className="text-xs text-emerald-400 font-black">785</span>
                               </div>
                               <div>
@@ -1063,7 +1022,7 @@ export default function DemoSimulatorPage() {
       {/* FOOTER CONTROLS INDICATORS */}
       <footer className="mt-6 flex justify-between items-center text-[10px] text-muted-foreground border-t border-white/5 pt-4 z-10 font-mono">
         <span>Status: {isPlaying ? "SIMULATION ACTIVE" : "PAUSED"}</span>
-        <span>Network Target: Base Sepolia Testnet Node (0x84532)</span>
+        <span>Network Target: AscendChain Devnet Node (Chain 13370)</span>
       </footer>
     </div>
   );

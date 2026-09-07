@@ -211,7 +211,7 @@ export default function AnalyticsPage() {
           <CardContent className="p-6 flex items-center justify-between">
             <div className="space-y-1">
               <span className="text-gray-400 text-xs font-semibold uppercase tracking-wider block font-mono">Average Trust Index</span>
-              <span className="text-3xl font-black text-white block tracking-tight">{averageStudentTrust} FICO</span>
+              <span className="text-3xl font-black text-white block tracking-tight">{averageStudentTrust} Ascend Trust Score</span>
             </div>
             <div className="w-12 h-12 rounded-xl bg-blue-600/10 border border-blue-500/20 flex items-center justify-center text-blue-400 shrink-0">
               <TrendingUp className="w-6 h-6" />
@@ -346,7 +346,7 @@ export default function AnalyticsPage() {
             
             <div className="flex justify-between items-center text-[10px] text-gray-500 font-mono">
               <span>Semester Start</span>
-              <span className="font-bold text-white">Current Average: {averageStudentTrust} FICO</span>
+              <span className="font-bold text-white">Current Average: {averageStudentTrust} Ascend Trust Score</span>
               <span>Today</span>
             </div>
           </CardContent>

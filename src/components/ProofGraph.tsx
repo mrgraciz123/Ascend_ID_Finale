@@ -364,7 +364,7 @@ export function ProofGraph({ records, achievements, instCredentials }: ProofGrap
                 <div className="text-[10px] space-y-1 bg-neutral-900 border border-white/5 p-3 rounded-lg">
                   <div className="flex justify-between">
                     <span className="text-white/40">Anchor Ledger</span>
-                    <span className="text-white truncate">Base Sepolia</span>
+                    <span className="text-white truncate">AscendChain</span>
                   </div>
                   <div className="flex justify-between mt-1">
                     <span className="text-white/40">Tx Hash</span>

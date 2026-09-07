@@ -1,20 +1,14 @@
-// Dynamically resolve Node fs and path on server only to prevent bundler compilation errors in browser.
-let fs: any = null;
-let path: any = null;
-if (typeof window === "undefined") {
-  try {
-    fs = require("fs");
-    path = require("path");
-  } catch (e) {
-    console.warn("Server fs/path require failed:", e);
-  }
-}
+import * as fs from "fs";
+import * as path from "path";
+import ascendchainDeployment from "./ascendchain-deployment.json";
 
 export interface AnchorReceipt {
   success: boolean;
   transactionHash: string;
   blockNumber: number;
   anchoredAt: string;
+  gasUsed?: string;
+  status?: string;
   error?: string;
 }
 
@@ -23,6 +17,8 @@ export interface RevocationReceipt {
   transactionHash: string;
   blockNumber: number;
   revokedAt: string;
+  gasUsed?: string;
+  status?: string;
   error?: string;
 }
 
@@ -47,9 +43,9 @@ export interface BlockchainProvider {
 // Mock Blockchain Provider for Local Presentation / Demo Mode
 // ---------------------------------------------------------
 export class MockBlockchainProvider implements BlockchainProvider {
-  chainId = 84532; // Base Sepolia Chain ID
-  chainName = "Base Sepolia (Mocked)";
-  contractAddress = "0xMockCredentialRegistryAddressBaseSepolia";
+  chainId = 13370; // AscendChain Devnet Chain ID
+  chainName = "AscendChain Devnet (Mocked)";
+  contractAddress = "0x5FbDB2315678afecb367f032d93F642f64180aa3";
 
   private getStateFilePath() {
     if (!fs || !path) return "";
@@ -267,18 +263,7 @@ export class AscendChainProvider implements BlockchainProvider {
   contractAddress: string;
 
   constructor(address?: string) {
-    let deployedAddr = "";
-    if (fs && path) {
-      try {
-        const manifestPath = path.join(process.cwd(), "src", "lib", "ascendchain-deployment.json");
-        if (fs.existsSync(manifestPath)) {
-          const manifest = JSON.parse(fs.readFileSync(manifestPath, "utf-8"));
-          deployedAddr = manifest.contractAddress;
-        }
-      } catch (e) {
-        // Fallback
-      }
-    }
+    const deployedAddr = ascendchainDeployment?.contractAddress || "";
     this.contractAddress = address || process.env.ASCENDCHAIN_CONTRACT_ADDRESS || deployedAddr || "0x5FbDB2315678afecb367f032d93F642f64180aa3";
   }
 
@@ -296,7 +281,12 @@ export class AscendChainProvider implements BlockchainProvider {
     });
 
     const rpcUrl = process.env.ASCENDCHAIN_RPC_URL || "http://127.0.0.1:8545";
-    const privateKey = process.env.ASCENDCHAIN_PRIVATE_KEY || "0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80";
+    const privateKey = process.env.ASCENDCHAIN_PRIVATE_KEY;
+    if (!privateKey) {
+      throw new Error(
+        "ASCENDCHAIN_PRIVATE_KEY is not configured. Set this server-side environment variable to enable AscendChain transactions."
+      );
+    }
 
     const publicClient = createPublicClient({
       chain: ascendChainSpec,
@@ -333,7 +323,9 @@ export class AscendChainProvider implements BlockchainProvider {
         success: true,
         transactionHash: hash,
         blockNumber: Number(receipt.blockNumber),
-        anchoredAt: new Date().toISOString()
+        anchoredAt: new Date().toISOString(),
+        gasUsed: receipt.gasUsed ? receipt.gasUsed.toString() : "21000",
+        status: receipt.status || "success"
       };
     } catch (e: any) {
       console.error("AscendChainProvider.anchorCredential error:", e);
@@ -366,7 +358,9 @@ export class AscendChainProvider implements BlockchainProvider {
         success: true,
         transactionHash: hash,
         blockNumber: Number(receipt.blockNumber),
-        revokedAt: new Date().toISOString()
+        revokedAt: new Date().toISOString(),
+        gasUsed: receipt.gasUsed ? receipt.gasUsed.toString() : "21000",
+        status: receipt.status || "success"
       };
     } catch (e: any) {
       console.error("AscendChainProvider.revokeCredential error:", e);
@@ -411,174 +405,21 @@ export class AscendChainProvider implements BlockchainProvider {
 }
 
 // ---------------------------------------------------------
-// Base Sepolia Viem Blockchain Provider (Legacy / Staging)
-// ---------------------------------------------------------
-export class BaseSepoliaProvider implements BlockchainProvider {
-  chainId = 84532;
-  chainName = "Base Sepolia (Legacy)";
-  contractAddress: string;
-
-  constructor() {
-    this.contractAddress = process.env.NEXT_PUBLIC_BLOCKCHAIN_CONTRACT_ADDRESS || "0x0000000000000000000000000000000000000000";
-  }
-
-  private async getClients() {
-    const { createPublicClient, createWalletClient, http } = await import("viem");
-    const { baseSepolia } = await import("viem/chains");
-    const { privateKeyToAccount } = await import("viem/accounts");
-
-    const rpcUrl = process.env.BLOCKCHAIN_RPC_URL || "https://sepolia.base.org";
-    const privateKey = process.env.BLOCKCHAIN_PRIVATE_KEY;
-
-    const publicClient = createPublicClient({
-      chain: baseSepolia,
-      transport: http(rpcUrl)
-    });
-
-    if (!privateKey) {
-      return { publicClient, walletClient: null, account: null };
-    }
-
-    const account = privateKeyToAccount(privateKey as `0x${string}`);
-    const walletClient = createWalletClient({
-      account,
-      chain: baseSepolia,
-      transport: http(rpcUrl)
-    });
-
-    return { publicClient, walletClient, account };
-  }
-
-  async anchorCredential(uuid: string, dataHash: string, issuerWallet: string): Promise<AnchorReceipt> {
-    try {
-      const { publicClient, walletClient, account } = await this.getClients();
-      if (!walletClient || !account) {
-        throw new Error("BLOCKCHAIN_PRIVATE_KEY is missing on server");
-      }
-
-      const formattedHash = dataHash.startsWith("0x") ? (dataHash as `0x${string}`) : (`0x${dataHash}` as `0x${string}`);
-
-      const { request } = await publicClient.simulateContract({
-        account,
-        address: this.contractAddress as `0x${string}`,
-        abi: ABI,
-        functionName: "anchorCredential",
-        args: [uuid, formattedHash, issuerWallet as `0x${string}`]
-      });
-
-      const hash = await walletClient.writeContract(request);
-      const receipt = await publicClient.waitForTransactionReceipt({ hash });
-
-      return {
-        success: true,
-        transactionHash: hash,
-        blockNumber: Number(receipt.blockNumber),
-        anchoredAt: new Date().toISOString()
-      };
-    } catch (e: any) {
-      console.error("BaseSepoliaProvider.anchorCredential error:", e);
-      return {
-        success: false,
-        transactionHash: "",
-        blockNumber: 0,
-        anchoredAt: "",
-        error: e.message || "Base Sepolia transaction failed"
-      };
-    }
-  }
-
-  async revokeCredential(uuid: string, reason: string): Promise<RevocationReceipt> {
-    try {
-      const { publicClient, walletClient, account } = await this.getClients();
-      if (!walletClient || !account) {
-        throw new Error("BLOCKCHAIN_PRIVATE_KEY is missing on server");
-      }
-
-      const { request } = await publicClient.simulateContract({
-        account,
-        address: this.contractAddress as `0x${string}`,
-        abi: ABI,
-        functionName: "revokeCredential",
-        args: [uuid, reason]
-      });
-
-      const hash = await walletClient.writeContract(request);
-      const receipt = await publicClient.waitForTransactionReceipt({ hash });
-
-      return {
-        success: true,
-        transactionHash: hash,
-        blockNumber: Number(receipt.blockNumber),
-        revokedAt: new Date().toISOString()
-      };
-    } catch (e: any) {
-      console.error("BaseSepoliaProvider.revokeCredential error:", e);
-      return {
-        success: false,
-        transactionHash: "",
-        blockNumber: 0,
-        revokedAt: "",
-        error: e.message || "Base Sepolia transaction failed"
-      };
-    }
-  }
-
-  async getCredentialHash(uuid: string): Promise<CredentialOnChainRecord> {
-    try {
-      const { publicClient } = await this.getClients();
-      const result = await publicClient.readContract({
-        address: this.contractAddress as `0x${string}`,
-        abi: ABI,
-        functionName: "getCredential",
-        args: [uuid]
-      }) as [string, string, boolean, string, bigint];
-
-      return {
-        hash: result[0],
-        issuerWallet: result[1],
-        isRevoked: result[2],
-        revocationReason: result[3],
-        blockTimestamp: Number(result[4])
-      };
-    } catch (e: any) {
-      console.error("BaseSepoliaProvider.getCredentialHash error:", e);
-      return {
-        hash: "0x0000000000000000000000000000000000000000000000000000000000000000",
-        issuerWallet: "0x0000000000000000000000000000000000000000",
-        isRevoked: false,
-        revocationReason: "",
-        blockTimestamp: 0
-      };
-    }
-  }
-}
-
-// ---------------------------------------------------------
 // Global Provider Getter
 // ---------------------------------------------------------
-// NOTE: NEXT_PUBLIC_DEMO_MODE does NOT affect this function.
-// The /demo simulation page handles its own state independently.
-// Provider selection is determined solely by which chain env vars are set:
-//   USE_ASCENDCHAIN=true or ASCENDCHAIN_RPC_URL set → AscendChainProvider (default)
-//   USE_MOCK_BLOCKCHAIN=true → MockBlockchainProvider (explicit opt-in for local testing only)
-//   Neither of the above, but Base Sepolia contract configured → BaseSepoliaProvider (legacy)
+// ROUTING RULES (in order of precedence):
+//   1. USE_MOCK_BLOCKCHAIN=true → MockBlockchainProvider (NEVER set in production)
+//   2. Default: AscendChainProvider — always used unless (1) applies.
+//
+// In production, AscendChainProvider will throw clearly if
+// ASCENDCHAIN_PRIVATE_KEY or ASCENDCHAIN_RPC_URL are not configured.
 export function getBlockchainProvider(): BlockchainProvider {
-  // Explicit mock opt-in (local testing only — never set in production)
+  // Explicit mock opt-in (unit-test / isolated local sandbox only — NEVER set in production)
   if (process.env.USE_MOCK_BLOCKCHAIN === "true") {
     return new MockBlockchainProvider();
   }
 
-  // AscendChain Devnet (primary)
-  if (process.env.USE_ASCENDCHAIN === "true" || process.env.ASCENDCHAIN_RPC_URL) {
-    return new AscendChainProvider();
-  }
-
-  // Base Sepolia (legacy fallback — only if AscendChain vars are not set)
-  const contractAddr = process.env.NEXT_PUBLIC_BLOCKCHAIN_CONTRACT_ADDRESS;
-  if (contractAddr && contractAddr !== "0x0000000000000000000000000000000000000000") {
-    return new BaseSepoliaProvider();
-  }
-
-  // Default: AscendChain
+  // AscendChain is the ONLY production provider.
+  // It will throw clearly if ASCENDCHAIN_PRIVATE_KEY is not configured.
   return new AscendChainProvider();
 }

@@ -382,7 +382,7 @@ export async function POST(request: NextRequest) {
       factorsList.push({
         label: "Verified Degree",
         change: "+80 pts",
-        description: `Official ${d.title} from ${d.issuerName} anchored cryptographically on Base Sepolia.`,
+        description: `Official ${d.title} from ${d.issuerName} anchored cryptographically on AscendChain.`,
         type: "positive"
       });
     });

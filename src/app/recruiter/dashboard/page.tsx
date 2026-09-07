@@ -347,7 +347,7 @@ export default function RecruiterDashboard() {
                         <div className="text-center min-w-[70px]">
                           <span className="text-[9px] uppercase font-bold text-gray-500 tracking-widest block font-mono">Trust Score</span>
                           <div className="text-2xl font-black text-white mt-1">{candidate.trustScore}</div>
-                          <span className="text-[9px] text-gray-400 block font-mono mt-0.5">{candidate.ficoClass}</span>
+                          <span className="text-[9px] text-gray-400 block font-mono mt-0.5">{candidate.trustClass}</span>
                         </div>
 
                         {/* Job Fit rating */}
@@ -857,7 +857,7 @@ export default function RecruiterDashboard() {
                     <tr key={row.rank} className="hover:bg-white/[0.01] transition-colors">
                       <td className="p-4 pl-6 font-mono text-blue-400">#0{row.rank}</td>
                       <td className="p-4 font-bold">{row.name}</td>
-                      <td className="p-4 text-center font-mono font-bold">{row.score} FICO</td>
+                      <td className="p-4 text-center font-mono font-bold">{row.score} Ascend Trust Score</td>
                       <td className="p-4 text-center font-mono text-emerald-400 font-semibold">{row.placement}%</td>
                     </tr>
                   ))}

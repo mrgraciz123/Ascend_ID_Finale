@@ -42,11 +42,11 @@ const DEMO_CREDENTIALS: Credential[] = [
     blockchainHash: "0x7f3a91bc2e4d56f8a0123456789abcdef01234567890abcdef0123456789abcd",
     qrCodeUrl: "https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=https://ascendid.app/verify/cred-demo-iitb-btech",
     blockchain: {
-      chainId: 84532,
-      contractAddress: "0xC9a43158891282A2B1475592D5719c001986926b",
+      chainId: 13370,
+      contractAddress: "0x5FbDB2315678afecb367f032d93F642f64180aa3",
       transactionHash: "0x89e13b29ceee72df292a8fc2e87b901a4c2d8f56e3197b45a298cd71e4f3082a",
-      blockNumber: 18947231,
-      issuerWallet: "0x3C44CdDdB6a900fa2b585dd299e03d12FA4293BC",
+      blockNumber: 2546,
+      issuerWallet: "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266",
       verificationStatus: "anchored",
       anchoredAt: "2026-05-15T10:30:00Z"
     },
@@ -71,11 +71,11 @@ const DEMO_CREDENTIALS: Credential[] = [
     blockchainHash: "0x2f8d4e1a9b7c63e50987654321fedcba98765432109876543210fedcba987654",
     qrCodeUrl: "https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=https://ascendid.app/verify/cred-demo-priya-degree",
     blockchain: {
-      chainId: 84532,
-      contractAddress: "0xC9a43158891282A2B1475592D5719c001986926b",
+      chainId: 13370,
+      contractAddress: "0x5FbDB2315678afecb367f032d93F642f64180aa3",
       transactionHash: "0x3d4e5f60a7b8c90d1e2f3a4b5c6d7e8f90a1b2c3d4e5f60a7b8c90d1e2f3a4b",
-      blockNumber: 18821044,
-      issuerWallet: "0x3C44CdDdB6a900fa2b585dd299e03d12FA4293BC",
+      blockNumber: 2548,
+      issuerWallet: "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266",
       verificationStatus: "anchored",
       anchoredAt: "2025-11-20T14:00:00Z"
     },
@@ -222,7 +222,7 @@ export default function IssuerDashboard() {
         <div>
           <h1 className="text-3xl font-display font-medium text-[#F5F1E8] tracking-tight">Issuer Console</h1>
           <p className="text-[#8A847B] text-xs mt-1">
-            Issue, manage, and anchor official credentials on Base Sepolia.
+            Issue, manage, and anchor Credentials on AscendChain.
           </p>
         </div>
         <div className="flex items-center gap-2.5">
@@ -267,7 +267,7 @@ export default function IssuerDashboard() {
               </p>
             </div>
             <div className="text-xs bg-[#0B1020]/60 border border-white/5 px-4 py-3 rounded-xl min-w-[220px]">
-              <span className="text-gray-500 block text-[9px] uppercase font-bold tracking-wider font-mono">Issuer DID</span>
+              <span className="text-gray-500 block text-[9px] uppercase font-bold tracking-wider font-mono">Issuer Identifier</span>
               <span className="font-mono text-white/80 mt-1 block select-all break-all text-[10px]">
                 did:ascendid:{isDemoUser(currentUser?.email || currentUser?.uid) ? "demo-issuer-001" : (currentUser?.uid || "")}
               </span>
@@ -429,8 +429,8 @@ export default function IssuerDashboard() {
                   },
                   {
                     step: "3",
-                    title: "Base Sepolia Anchoring",
-                    desc: "The hash is submitted to CredentialRegistry.sol on Base Sepolia. The transaction hash provides a permanent, immutable timestamp."
+                    title: "AscendChain Anchoring",
+                    desc: "The hash is submitted to CredentialRegistry.sol on AscendChain (Chain 13370). The transaction hash provides a permanent, immutable timestamp."
                   }
                 ].map(item => (
                   <div key={item.step} className="flex gap-2.5">
@@ -451,21 +451,15 @@ export default function IssuerDashboard() {
               <CardContent className="p-5">
                 <div className="flex items-center gap-2 mb-1">
                   <Database className="w-4 h-4 text-blue-400" />
-                  <span className="text-xs font-bold text-blue-400 font-mono uppercase tracking-widest">Base Sepolia</span>
+                  <span className="text-xs font-bold text-blue-400 font-mono uppercase tracking-widest">AscendChain</span>
                 </div>
                 <p className="text-[10px] text-gray-400 leading-relaxed">
-                  {blockchainAnchoredCount} credential{blockchainAnchoredCount !== 1 ? "s" : ""} permanently anchored on Base Sepolia testnet.
-                  Every transaction hash is publicly verifiable.
+                  {blockchainAnchoredCount} credential{blockchainAnchoredCount !== 1 ? "s" : ""} permanently anchored on AscendChain Devnet (Chain 13370).
+                  Every transaction hash is independently verifiable on the sovereign EVM ledger.
                 </p>
-                <a
-                  href="https://sepolia.basescan.org/address/0xC9a43158891282A2B1475592D5719c001986926b"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-flex items-center gap-1.5 mt-3 text-[10px] font-bold text-blue-400 hover:text-blue-300 transition-colors"
-                >
-                  <ArrowUpRight className="w-3 h-3" />
-                  View Contract on BaseScan
-                </a>
+                <p className="inline-flex items-center gap-1.5 mt-3 text-[10px] font-mono text-blue-400">
+                  Contract: 0x5FbDB2315678afecb367f032d93F642f64180aa3
+                </p>
               </CardContent>
             </Card>
           )}

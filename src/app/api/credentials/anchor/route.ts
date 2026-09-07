@@ -79,10 +79,10 @@ export async function POST(request: NextRequest) {
         "id": `did:ascendid:${issuerId}`,
         "name": issuerName,
         "walletAddress": issuerWallet,
-        "type": issuerType
+        "type": issuerType || "University"
       },
       "issuanceDate": new Date(issueDate).toISOString(),
-      "expirationDate": expiryDate === "Never" ? "Never" : new Date(expiryDate).toISOString(),
+      "expirationDate": (!expiryDate || expiryDate === "Never") ? "Never" : new Date(expiryDate).toISOString(),
       "credentialSubject": {
         "id": studentId ? `did:ascendid:${studentId}` : `mailto:${studentEmail.toLowerCase()}`,
         "name": studentName,
@@ -109,25 +109,31 @@ export async function POST(request: NextRequest) {
     const formattedHash = calculateMetadataHashServer(normalizationPayload);
 
     // 5. Generate Server-Side Cryptographic Signature (Viem)
+    // Uses ASCENDCHAIN_PRIVATE_KEY for signing credentials.
+    // If not configured, the request fails with a clear error — no mock signature in production.
     let digitalSignature = "";
     try {
-      const privateKey = process.env.BLOCKCHAIN_PRIVATE_KEY;
-      if (privateKey) {
-        const { privateKeyToAccount } = await import("viem/accounts");
-        const account = privateKeyToAccount(privateKey as `0x${string}`);
-        digitalSignature = await account.signMessage({ message: formattedHash });
-      } else {
-        // Mock signature fallback
-        digitalSignature = `mock_jws_sig_0x${createHash("sha256").update(formattedHash + "_mock_salt").digest("hex")}`;
+      const privateKey = process.env.ASCENDCHAIN_PRIVATE_KEY;
+      if (!privateKey) {
+        return NextResponse.json(
+          { error: "Server signing key not configured. Set ASCENDCHAIN_PRIVATE_KEY." },
+          { status: 500 }
+        );
       }
+      const { privateKeyToAccount } = await import("viem/accounts");
+      const account = privateKeyToAccount(privateKey as `0x${string}`);
+      digitalSignature = await account.signMessage({ message: formattedHash });
     } catch (e) {
-      console.warn("Failed to generate cryptographic signature, using mock:", e);
-      digitalSignature = `mock_jws_sig_0x${createHash("sha256").update(formattedHash + "_mock_salt").digest("hex")}`;
+      console.error("Failed to generate cryptographic signature:", e);
+      return NextResponse.json(
+        { error: "Cryptographic signing failed. Check ASCENDCHAIN_PRIVATE_KEY configuration." },
+        { status: 500 }
+      );
     }
 
     // Embed proof signature to meet W3C standards
     w3cCredential.proof = {
-      "type": "JsonWebSignature2020",
+      "type": "EcdsaSecp256k1Signature2019",
       "created": new Date().toISOString(),
       "proofPurpose": "assertionMethod",
       "verificationMethod": `did:ascendid:${issuerId}#key-1`,
@@ -144,6 +150,15 @@ export async function POST(request: NextRequest) {
       }, { status: 500 });
     }
 
+    const anchorReceipt = {
+      success: true,
+      transactionHash: anchorResult.transactionHash,
+      blockNumber: anchorResult.blockNumber,
+      anchoredAt: anchorResult.anchoredAt,
+      gasUsed: anchorResult.gasUsed || null,
+      status: anchorResult.status || "success"
+    };
+
     // 7. Write complete metadata document to Firestore
     const anchoredRecord = {
       id: uuid,
@@ -152,7 +167,7 @@ export async function POST(request: NextRequest) {
       studentId,
       issuerId,
       issuerName,
-      issuerType,
+      issuerType: issuerType || "University",
       title,
       description,
       credentialType,
@@ -163,6 +178,7 @@ export async function POST(request: NextRequest) {
       // W3C representation
       w3cData: w3cCredential,
       metadataHash: formattedHash,
+      blockchainHash: formattedHash,
       digitalSignature,
       qrCodeUrl: `https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${encodeURIComponent(`${request.nextUrl.origin}/verify/${uuid}`)}`,
 
@@ -170,22 +186,44 @@ export async function POST(request: NextRequest) {
       documentUrl: documentUrl || "",
       documentFraudReport: documentFraudReport || null,
 
+      // Canonical separate anchor transaction & receipt
+      anchorTransactionHash: anchorResult.transactionHash,
+      anchorBlockNumber: anchorResult.blockNumber,
+      anchoredAt: anchorResult.anchoredAt,
+      anchorReceipt,
+
+      // Initial revocation states
+      revocationTransactionHash: null,
+      revocationBlockNumber: null,
+      revokedAt: null,
+      revocationReceipt: null,
+      revocationReason: null,
+
       blockchain: {
         chainId: provider.chainId,
+        chainName: provider.chainName,
         contractAddress: provider.contractAddress || "0x0000000000000000000000000000000000000000",
+        anchorTransactionHash: anchorResult.transactionHash,
+        anchorBlockNumber: anchorResult.blockNumber,
+        anchoredAt: anchorResult.anchoredAt,
+        anchorReceipt,
+        revocationTransactionHash: null,
+        revocationBlockNumber: null,
+        revokedAt: null,
+        revocationReceipt: null,
+        revocationReason: null,
         transactionHash: anchorResult.transactionHash,
         blockNumber: anchorResult.blockNumber,
         issuerWallet,
-        verificationStatus: "anchored",
-        anchoredAt: anchorResult.anchoredAt
+        verificationStatus: "anchored"
       },
 
       auditTrail: [
         {
           status: "issued",
-          timestamp: new Date().toISOString(),
+          timestamp: anchorResult.anchoredAt,
           transactionHash: anchorResult.transactionHash,
-          details: `Credential hash ${formattedHash} anchored to registry by issuer wallet ${issuerWallet}.`
+          details: `Credential hash ${formattedHash} anchored to AscendChain registry by issuer wallet ${issuerWallet}.`
         }
       ],
 
@@ -219,7 +257,14 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({
       success: true,
       id: uuid,
-      transactionHash: anchorResult.transactionHash
+      credentialId: uuid,
+      metadataHash: formattedHash,
+      blockchainHash: formattedHash,
+      transactionHash: anchorResult.transactionHash,
+      anchorTransactionHash: anchorResult.transactionHash,
+      blockNumber: anchorResult.blockNumber,
+      anchoredAt: anchorResult.anchoredAt,
+      receipt: anchorReceipt
     });
 
   } catch (error: any) {

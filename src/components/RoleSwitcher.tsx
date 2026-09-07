@@ -77,6 +77,8 @@ export default function RoleSwitcher({ currentWorkspace }: RoleSwitcherProps) {
     async function fetchRole() {
       if (!currentUser) return;
       try {
+        // Force token refresh to ensure Firestore SDK has valid auth state
+        await currentUser.getIdToken(true);
         const userDoc = await getDoc(doc(db, "users", currentUser.uid));
         if (userDoc.exists()) {
           setUserRole(userDoc.data().role ?? "student");
@@ -245,7 +247,7 @@ export default function RoleSwitcher({ currentWorkspace }: RoleSwitcherProps) {
             >
               <Play className="w-3.5 h-3.5 text-[#8A847B] group-hover/demo:text-[#F5F1E8] transition-colors shrink-0" />
               <span className="text-[11px] text-[#8A847B] group-hover/demo:text-[#F5F1E8] transition-colors">
-                Auto Simulation
+                Sandbox Simulation
               </span>
             </Link>
           </div>

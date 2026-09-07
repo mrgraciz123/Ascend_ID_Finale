@@ -56,25 +56,24 @@ export default function LoginPage() {
     if (!creds) { setLoadingRole(null); return; }
 
     const password = "AscendID_Demo_2026!";
-    const role = roleId === "university" ? "issuer" : roleId;
 
     try {
       await login(creds.email, password);
-    } catch {
-      try {
-        await signup(creds.email, password, creds.name, role, creds.issuerType || "");
-        await new Promise(r => setTimeout(r, 400));
-        await login(creds.email, password);
-      } catch {
-        setError(`Demo login failed. Try signing in manually with ${creds.email}.`);
-        setLoadingRole(null);
-        return;
-      }
+      await new Promise(r => setTimeout(r, 400));
+      const targetPath = roleId === "university" 
+        ? "/issuer/dashboard" 
+        : roleId === "recruiter" 
+          ? "/recruiter/dashboard" 
+          : roleId === "government" 
+            ? "/gov/dashboard" 
+            : "/student/passport";
+      router.push(targetPath);
+    } catch (err: any) {
+      console.error("Demo login failed:", err);
+      setError(`Sign in failed for ${creds.email}. Please verify password: ${err.message}`);
+    } finally {
+      setLoadingRole(null);
     }
-
-    await new Promise(r => setTimeout(r, 500));
-    router.push(roleId === "university" ? "/issuer/dashboard" : roleId === "recruiter" ? "/recruiter/dashboard" : roleId === "government" ? "/gov/dashboard" : "/student/passport");
-    setLoadingRole(null);
   };
 
   const handleLogin = async (e: React.FormEvent<HTMLFormElement>) => {
@@ -94,7 +93,13 @@ export default function LoginPage() {
 
     try {
       await login(email, password);
-      router.push("/student/passport");
+      const { auth } = await import("@/lib/firebase");
+      const uid = auth.currentUser?.uid;
+      if (uid) {
+        await redirectByRole(uid);
+      } else {
+        router.push("/student/passport");
+      }
     } catch (err: any) {
       setError(err.message || "Sign in failed. Please check credentials.");
     } finally {

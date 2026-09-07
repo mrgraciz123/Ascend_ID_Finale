@@ -33,6 +33,11 @@ export default function IssuerLayout({ children }: { children: React.ReactNode }
       }
       
       try {
+        // Force token refresh to ensure Firestore client SDK has valid auth
+        // This fixes "Missing or insufficient permissions" when onAuthStateChanged
+        // fires before the Firestore security layer has the user's token.
+        await currentUser.getIdToken(true);
+
         const userDoc = await getDoc(doc(db, "users", currentUser.uid));
         if (userDoc.exists() && userDoc.data().role === "issuer") {
           setIsAuthorized(true);

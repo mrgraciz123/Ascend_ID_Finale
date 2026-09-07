@@ -11,21 +11,31 @@ import {
 } from "firebase/firestore";
 import { isDemoUser } from "@/lib/demo-data";
 
+export interface CredentialReceipt {
+  transactionHash: string;
+  blockNumber: number;
+  anchoredAt?: string;
+  revokedAt?: string;
+  timestamp?: string;
+  gasUsed?: string | null;
+  status?: string;
+}
+
 export interface Credential {
   id: string; // UUID — Firestore document ID
   issuerId: string;
   issuerName: string;
-  issuerType: "university" | "company" | "hackathon" | "certifier";
+  issuerType: "university" | "company" | "hackathon" | "certifier" | string;
   studentName: string;
   studentEmail: string;
   studentId: string; // Firebase UID if student is registered; empty string otherwise
   title: string;
   description: string;
-  credentialType: "degree" | "diploma" | "experience" | "internship" | "achievement" | "certification" | "badge";
+  credentialType: "degree" | "diploma" | "experience" | "internship" | "achievement" | "certification" | "badge" | string;
   issueDate: string; // YYYY-MM-DD
   expiryDate: string; // YYYY-MM-DD or "Never"
   verificationStatus: "issued" | "revoked";
-  revocationReason?: string;
+  revocationReason?: string | null;
   revokedAt?: any;
 
   /** Cryptographic signature — generated server-side via viem/accounts.signMessage */
@@ -43,15 +53,41 @@ export interface Credential {
   /** The normalized metadata hash (same as blockchainHash for clarity) */
   metadataHash?: string;
 
+  /** Document attachment & fraud analysis */
+  documentUrl?: string;
+  documentFraudReport?: any;
+
+  /** Canonical separate anchor transaction details */
+  anchorTransactionHash?: string;
+  anchorBlockNumber?: number;
+  anchoredAt?: string;
+  anchorReceipt?: CredentialReceipt;
+
+  /** Canonical separate revocation transaction details */
+  revocationTransactionHash?: string | null;
+  revocationBlockNumber?: number | null;
+  revocationReceipt?: CredentialReceipt | null;
+
   /** On-chain anchoring details */
   blockchain?: {
     chainId: number;
+    chainName?: string;
     contractAddress: string;
+    // Canonical separated hashes:
+    anchorTransactionHash?: string;
+    anchorBlockNumber?: number;
+    anchoredAt?: string;
+    anchorReceipt?: CredentialReceipt;
+    revocationTransactionHash?: string | null;
+    revocationBlockNumber?: number | null;
+    revokedAt?: string | null;
+    revocationReceipt?: CredentialReceipt | null;
+    revocationReason?: string | null;
+    // Legacy backwards-compatible aliases:
     transactionHash: string;
     blockNumber: number;
     issuerWallet: string;
     verificationStatus: string;
-    anchoredAt: string;
   };
 
   /** Full audit trail of all status changes */
@@ -86,7 +122,17 @@ export class CredentialService {
     issuerWallet?: string;
     documentUrl?: string;
     documentFraudReport?: any;
-  }): Promise<{ success: boolean; id?: string; error?: string }> {
+  }): Promise<{ 
+    success: boolean; 
+    id?: string; 
+    transactionHash?: string; 
+    anchorTransactionHash?: string; 
+    blockNumber?: number;
+    anchoredAt?: string;
+    metadataHash?: string;
+    receipt?: CredentialReceipt;
+    error?: string; 
+  }> {
     try {
       const { auth } = await import("@/lib/firebase");
       const token = await auth.currentUser?.getIdToken();
@@ -106,7 +152,16 @@ export class CredentialService {
       if (!response.ok || !result.success) {
         throw new Error(result.error || "Failed to anchor credential via API");
       }
-      return { success: true, id: result.id };
+      return { 
+        success: true, 
+        id: result.id,
+        transactionHash: result.anchorTransactionHash || result.transactionHash,
+        anchorTransactionHash: result.anchorTransactionHash || result.transactionHash,
+        blockNumber: result.blockNumber,
+        anchoredAt: result.anchoredAt,
+        metadataHash: result.metadataHash || result.blockchainHash,
+        receipt: result.receipt
+      };
     } catch (error: any) {
       console.error("Error in issueCredential:", error);
       return { success: false, error: error.message || "Failed to issue credential" };
@@ -171,7 +226,13 @@ export class CredentialService {
   /**
    * Revokes a credential via the secure server-side revocation API.
    */
-  static async revokeCredential(id: string, reason: string): Promise<{ success: boolean; error?: string }> {
+  static async revokeCredential(id: string, reason: string): Promise<{ 
+    success: boolean; 
+    transactionHash?: string; 
+    revocationTransactionHash?: string; 
+    blockNumber?: number; 
+    error?: string 
+  }> {
     try {
       const { auth } = await import("@/lib/firebase");
       const token = await auth.currentUser?.getIdToken();
@@ -190,7 +251,12 @@ export class CredentialService {
       if (!response.ok || !result.success) {
         throw new Error(result.error || "Failed to revoke credential via API");
       }
-      return { success: true };
+      return { 
+        success: true,
+        transactionHash: result.revocationTransactionHash || result.transactionHash,
+        revocationTransactionHash: result.revocationTransactionHash || result.transactionHash,
+        blockNumber: result.blockNumber
+      };
     } catch (error: any) {
       console.error("Error in revokeCredential:", error);
       return { success: false, error: error.message || "Failed to revoke credential" };

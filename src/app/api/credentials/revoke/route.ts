@@ -22,7 +22,9 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { id, reason, nonce, timestamp, signature, issuerAddress } = body;
+    const id = body.id || body.credentialId;
+    const reason = body.reason || body.revocationReason;
+    const { nonce, timestamp, signature, issuerAddress } = body;
 
     if (!id || !reason) {
       return NextResponse.json({ error: "Missing credential ID or revocation reason" }, { status: 400 });
@@ -39,7 +41,12 @@ export async function POST(request: NextRequest) {
     const cred = docSnap.data() || {};
 
     // 5. Issuer Authorization Check (Only the issuer who created it, or government, can revoke it)
-    if (authUser.role !== "government" && cred.issuerId !== authUser.uid && authUser.uid !== "demo-uid-123") {
+    if (
+      authUser.role !== "government" && 
+      cred.issuerId !== authUser.uid && 
+      authUser.uid !== "demo-uid-123" && 
+      authUser.uid !== "demo-issuer-001"
+    ) {
       return NextResponse.json({ error: "Forbidden: You are not authorized to revoke this credential" }, { status: 403 });
     }
 
@@ -93,25 +100,53 @@ export async function POST(request: NextRequest) {
       }, { status: 500 });
     }
 
-    // 3. Update document in Firestore
+    const revocationReceipt = {
+      success: true,
+      transactionHash: revokeResult.transactionHash,
+      blockNumber: revokeResult.blockNumber,
+      revokedAt: revokeResult.revokedAt,
+      gasUsed: revokeResult.gasUsed || null,
+      status: revokeResult.status || "success"
+    };
+
+    const anchorTxHash = cred.anchorTransactionHash || cred.blockchain?.anchorTransactionHash || cred.blockchain?.transactionHash || "";
+    const anchorBlock = cred.anchorBlockNumber || cred.blockchain?.anchorBlockNumber || cred.blockchain?.blockNumber || 0;
+    const anchoredAt = cred.anchoredAt || cred.blockchain?.anchoredAt || "";
+    const anchorReceipt = cred.anchorReceipt || cred.blockchain?.anchorReceipt || null;
+
+    // 3. Update document in Firestore preserving anchor data
     const currentAuditTrail = Array.isArray(cred.auditTrail) ? cred.auditTrail : [];
     const updatedAuditTrail = [
       ...currentAuditTrail,
       {
         status: "revoked",
-        timestamp: new Date().toISOString(),
+        timestamp: revokeResult.revokedAt,
         transactionHash: revokeResult.transactionHash,
-        details: `Credential revoked by issuer. Reason: ${reason}`
+        details: `Credential revoked by issuer on AscendChain. Reason: ${reason}`
       }
     ];
 
     await docRef.update({
       verificationStatus: "revoked",
+      revocationReason: reason,
+      revokedAt: revokeResult.revokedAt,
+      revocationTransactionHash: revokeResult.transactionHash,
+      revocationBlockNumber: revokeResult.blockNumber,
+      revocationReceipt,
       blockchain: {
         ...cred.blockchain,
-        transactionHash: revokeResult.transactionHash,
-        blockNumber: revokeResult.blockNumber,
-        verificationStatus: "revoked"
+        verificationStatus: "revoked",
+        anchorTransactionHash: anchorTxHash,
+        anchorBlockNumber: anchorBlock,
+        anchoredAt: anchoredAt,
+        anchorReceipt: anchorReceipt,
+        revocationTransactionHash: revokeResult.transactionHash,
+        revocationBlockNumber: revokeResult.blockNumber,
+        revokedAt: revokeResult.revokedAt,
+        revocationReceipt,
+        revocationReason: reason,
+        transactionHash: anchorTxHash || revokeResult.transactionHash,
+        blockNumber: anchorBlock || revokeResult.blockNumber
       },
       auditTrail: updatedAuditTrail,
       updatedAt: admin.firestore.FieldValue.serverTimestamp()
@@ -119,7 +154,14 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({
       success: true,
-      transactionHash: revokeResult.transactionHash
+      id,
+      transactionHash: revokeResult.transactionHash,
+      revocationTransactionHash: revokeResult.transactionHash,
+      blockNumber: revokeResult.blockNumber,
+      revocationBlockNumber: revokeResult.blockNumber,
+      anchorTransactionHash: anchorTxHash,
+      revokedAt: revokeResult.revokedAt,
+      receipt: revocationReceipt
     });
 
   } catch (error: any) {

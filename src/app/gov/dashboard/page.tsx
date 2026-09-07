@@ -216,7 +216,7 @@ export default function GovernmentDashboard() {
           <CardContent className="p-6 flex items-center justify-between">
             <div className="space-y-1">
               <span className="text-gray-400 text-xs font-semibold uppercase tracking-wider block font-mono">National Trust Index</span>
-              <span className="text-3xl font-black text-[#F5F1E8] block tracking-tight">{stats.averageTrustScore} FICO</span>
+              <span className="text-3xl font-black text-[#F5F1E8] block tracking-tight">{stats.averageTrustScore} Ascend Trust Score</span>
             </div>
             <div className="w-12 h-12 rounded-xl bg-[#B65F32]/10 border border-[#B65F32]/20 flex items-center justify-center text-[#B65F32] shrink-0">
               <TrendingUp className="w-6 h-6" />
@@ -330,7 +330,7 @@ export default function GovernmentDashboard() {
                 <tr>
                   <th className="p-4 pl-6">Rank</th>
                   <th className="p-4">Institution</th>
-                  <th className="p-4 text-center">Avg Trust (FICO)</th>
+                  <th className="p-4 text-center">Avg Ascend Trust Score</th>
                   <th className="p-4 text-center">Verification Volume</th>
                   <th className="p-4 text-center">Placement Rate</th>
                 </tr>

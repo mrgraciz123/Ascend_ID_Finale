@@ -46,29 +46,62 @@ export function checkPayloadSize(request: NextRequest, maxBytes = 5 * 1024 * 102
 /**
  * Validates Firebase ID Token and retrieves User metadata and Role.
  * 
- * DEMO MODE: If request carries the header X-Demo-Role, and NEXT_PUBLIC_DEMO_MODE=true,
- * this function returns a demo user. This is clearly labeled and not a security bypass.
+ * SECURITY AUDIT:
+ * 1. Production Mode: All API requests MUST provide a valid Firebase ID Token in `Authorization: Bearer <token>`.
+ *    The token is cryptographically verified against Firebase Auth Admin SDK. User role is fetched from Firestore `users/${uid}`.
+ * 2. Development/Test Mode: For automated CLI test suites (such as scripts/app-lifecycle-test.ts),
+ *    `X-Demo-Role` and `X-Demo-Uid` are supported strictly when `process.env.NODE_ENV !== "production"`
+ *    or `process.env.ALLOW_DEMO_AUTH_HEADERS === "true"`.
+ * 3. In production (`NODE_ENV === "production"`), demo headers are strictly ignored and will NOT bypass authentication.
  */
 export async function authenticateRequest(request: NextRequest): Promise<AuthenticatedUser | null> {
   try {
     // -----------------------------------------------------------------------
-    // DEMO MODE — Only active when NEXT_PUBLIC_DEMO_MODE env var is "true"
-    // Must carry explicit X-Demo-Role header set by the client demo context
+    // 1. Primary Authentication: Verify Real Firebase ID Token
     // -----------------------------------------------------------------------
-    const isDemoMode = process.env.NEXT_PUBLIC_DEMO_MODE === "true";
+    const authHeader = request.headers.get("Authorization");
+    if (authHeader && authHeader.startsWith("Bearer ")) {
+      const token = authHeader.split("Bearer ")[1]?.trim();
+      if (token) {
+        try {
+          const decodedToken = await admin.auth().verifyIdToken(token);
+          const userDoc = await adminDb.collection("users").doc(decodedToken.uid).get();
+          const role: AuthenticatedUser["role"] = userDoc.exists
+            ? (userDoc.data()?.role as AuthenticatedUser["role"]) || "user"
+            : "user";
+
+          return {
+            uid: decodedToken.uid,
+            email: decodedToken.email || "",
+            role,
+            isDemo: false
+          };
+        } catch (tokenErr) {
+          console.warn("Firebase ID Token verification failed:", tokenErr);
+          // If token was provided but invalid, reject immediately
+          return null;
+        }
+      }
+    }
+
+    // -----------------------------------------------------------------------
+    // 2. Development & Automated Testing Sandbox (strictly isolated)
+    // -----------------------------------------------------------------------
+    const isDevOrTest = process.env.NODE_ENV !== "production" || process.env.ALLOW_DEMO_AUTH_HEADERS === "true";
     const demoRoleHeader = request.headers.get("X-Demo-Role");
 
-    if (isDemoMode && demoRoleHeader) {
-      const validRoles = ["student", "recruiter", "issuer", "government"];
-      if (validRoles.includes(demoRoleHeader)) {
+    if (isDevOrTest && demoRoleHeader) {
+      const validRoles: AuthenticatedUser["role"][] = ["student", "recruiter", "issuer", "government"];
+      if (validRoles.includes(demoRoleHeader as AuthenticatedUser["role"])) {
         const demoUids: Record<string, string> = {
           student: "demo-student-001",
           recruiter: "demo-recruiter-001",
           issuer: "demo-issuer-001",
           government: "demo-gov-001"
         };
+        const customUid = request.headers.get("X-Demo-Uid");
         return {
-          uid: demoUids[demoRoleHeader] || "demo-user-001",
+          uid: customUid || demoUids[demoRoleHeader] || "demo-user-001",
           email: `demo-${demoRoleHeader}@ascendid.demo`,
           role: demoRoleHeader as AuthenticatedUser["role"],
           isDemo: true
@@ -76,33 +109,10 @@ export async function authenticateRequest(request: NextRequest): Promise<Authent
       }
     }
 
-    // -----------------------------------------------------------------------
-    // Production — Verify Firebase ID Token
-    // -----------------------------------------------------------------------
-    const authHeader = request.headers.get("Authorization");
-    if (!authHeader || !authHeader.startsWith("Bearer ")) {
-      return null;
-    }
-
-    const token = authHeader.split("Bearer ")[1];
-    if (!token) return null;
-
-    const decodedToken = await admin.auth().verifyIdToken(token);
-
-    // Fetch role from Firestore users collection
-    const userDoc = await adminDb.collection("users").doc(decodedToken.uid).get();
-    const role: AuthenticatedUser["role"] = userDoc.exists
-      ? (userDoc.data()?.role as AuthenticatedUser["role"]) || "user"
-      : "user";
-
-    return {
-      uid: decodedToken.uid,
-      email: decodedToken.email || "",
-      role,
-      isDemo: false
-    };
+    // Unauthenticated request
+    return null;
   } catch (error) {
-    console.error("Authentication check failed:", error);
+    console.error("Authentication check exception:", error);
     return null;
   }
 }

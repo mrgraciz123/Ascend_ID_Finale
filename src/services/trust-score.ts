@@ -50,9 +50,17 @@ export class TrustScoreService {
         console.warn("TrustScoreService: Trust Engine API unavailable, using Firestore fallback:", e);
       }
 
-      // 2. Firestore fallback
-      const profileRef = doc(db, "students", studentId);
-      const profileSnap = await getDoc(profileRef);
+      // 2. Firestore fallback (only if authenticated)
+      let profileSnap: any = null;
+      try {
+        const { auth } = await import("@/lib/firebase");
+        if (auth.currentUser) {
+          const profileRef = doc(db, "students", studentId);
+          profileSnap = await getDoc(profileRef);
+        }
+      } catch {
+        // Fallback silently if current user is not authorized to read this student
+      }
 
       let total = 350;
       let factors = { ...DEFAULT_FACTORS };
@@ -64,7 +72,7 @@ export class TrustScoreService {
         factors = apiData.factors;
         explanation = apiData.explanation;
         lastUpdated = apiData.lastUpdated;
-      } else if (profileSnap.exists()) {
+      } else if (profileSnap?.exists?.()) {
         const data = profileSnap.data();
         if (typeof data.trustScore === "number") total = data.trustScore;
         if (data.trustFactors) factors = { ...factors, ...data.trustFactors };
@@ -75,20 +83,23 @@ export class TrustScoreService {
       // 3. Fetch trust history subcollection
       const historyList: any[] = [];
       try {
-        const historySnap = await getDocs(collection(db, "students", studentId, "trust_history"));
-        historySnap.forEach(docSnap => {
-          const h = docSnap.data();
-          historyList.push({
-            id: docSnap.id,
-            score: h.score || 350,
-            timestamp: h.timestamp || "",
-            explanation: h.explanation || "",
-            factors: h.factors || factors
+        const { auth } = await import("@/lib/firebase");
+        if (auth.currentUser) {
+          const historySnap = await getDocs(collection(db, "students", studentId, "trust_history"));
+          historySnap.forEach(docSnap => {
+            const h = docSnap.data();
+            historyList.push({
+              id: docSnap.id,
+              score: h.score || 350,
+              timestamp: h.timestamp || "",
+              explanation: h.explanation || "",
+              factors: h.factors || factors
+            });
           });
-        });
-        historyList.sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
-      } catch (e) {
-        console.warn("Failed to fetch trust history:", e);
+          historyList.sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
+        }
+      } catch {
+        // Ignore if trust_history is empty or not permitted for non-student
       }
 
       // Add baseline entries if history is empty (so charts always have data to display)

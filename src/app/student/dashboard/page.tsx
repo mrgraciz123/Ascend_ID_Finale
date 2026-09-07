@@ -16,7 +16,7 @@ import { useCallback } from "react";
 import { DEMO_STUDENT, DEMO_ACADEMIC_RECORDS, DEMO_ACHIEVEMENTS, DEMO_OPPORTUNITIES, DEMO_TRUST_SCORE, isDemoUser } from "@/lib/demo-data";
 import { motion } from "framer-motion";
 
-const FICO_CLASS = (score: number) => {
+const TRUST_CLASS = (score: number) => {
   if (score >= 800) return { label: "Exceptional", color: "text-[#C9944A]", bg: "bg-[#C9944A]/10", border: "border-[#C9944A]/30" };
   if (score >= 740) return { label: "Very Good", color: "text-[#B65F32]", bg: "bg-[#B65F32]/10", border: "border-[#B65F32]/30" };
   if (score >= 670) return { label: "Good", color: "text-[#F5F1E8]", bg: "bg-white/10", border: "border-white/20" };
@@ -146,7 +146,7 @@ export default function StudentDashboard() {
   const studentName = student?.fullName || student?.name || currentUser?.displayName || "Student";
   const firstName = studentName.split(" ")?.[0] || "Student";
   const totalScore = trustScoreData?.total || 350;
-  const ficoMeta = FICO_CLASS(totalScore);
+  const trustMeta = TRUST_CLASS(totalScore);
   const verifiedCount = achievements.filter(a => a.verified).length;
 
   return (
@@ -193,8 +193,8 @@ export default function StudentDashboard() {
               <div className="flex items-end gap-2">
                 <div className="text-5xl font-bold text-white tracking-tight">{totalScore}</div>
                 <div className="pb-1">
-                  <div className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full border ${ficoMeta.bg} ${ficoMeta.border} ${ficoMeta.color}`}>
-                    {ficoMeta.label}
+                  <div className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full border ${trustMeta.bg} ${trustMeta.border} ${trustMeta.color}`}>
+                    {trustMeta.label}
                   </div>
                 </div>
               </div>
@@ -228,12 +228,12 @@ export default function StudentDashboard() {
             </CardHeader>
             <CardContent>
               <div className="text-5xl font-bold text-white tracking-tight">{verifiedCount}</div>
-              <p className="text-[11px] text-gray-400 mt-2.5 font-mono uppercase tracking-wider">
-                Credentials on Base Sepolia
+              <p className="text-[11px] text-[#8A847B] mt-2.5 font-mono uppercase tracking-wider">
+                Credentials on AscendChain Devnet
               </p>
               <div className="flex flex-wrap gap-1 mt-3">
                 {["Degree", "Internship", "Research", "Leadership"].slice(0, Math.min(verifiedCount, 4)).map(tag => (
-                  <span key={tag} className="text-[9px] px-1.5 py-0.5 bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 rounded font-mono font-bold">
+                  <span key={tag} className="text-[9px] px-1.5 py-0.5 bg-[#B65F32]/10 border border-[#B65F32]/20 text-[#B65F32] rounded font-mono font-bold">
                     {tag}
                   </span>
                 ))}

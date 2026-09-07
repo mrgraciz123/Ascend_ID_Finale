@@ -17,7 +17,6 @@ import {
   CheckCircle, 
   Loader2, 
   ArrowLeft, 
-  QrCode, 
   Copy, 
   Check,
   UploadCloud,
@@ -25,9 +24,9 @@ import {
   ShieldAlert,
   BrainCircuit,
   Maximize2,
-  Calendar,
+  ExternalLink,
   Sparkles,
-  Info
+  Database
 } from "lucide-react";
 import Link from "next/link";
 
@@ -35,10 +34,17 @@ export default function IssueCredentialPage() {
   const { currentUser } = useAuth();
   const [issuerProfile, setIssuerProfile] = useState<any>(null);
   const [loading, setLoading] = useState(false);
+  const [issueStatus, setIssueStatus] = useState<"idle" | "issuing" | "anchoring" | "confirming" | "anchored" | "failed">("idle");
   const [success, setSuccess] = useState<boolean>(false);
   const [issuedId, setIssuedId] = useState<string>("");
+  const [issuedTxHash, setIssuedTxHash] = useState<string>("");
+  const [issuedBlock, setIssuedBlock] = useState<number | null>(null);
+  const [issuedHash, setIssuedHash] = useState<string>("");
   const [errorMsg, setErrorMsg] = useState<string>("");
-  const [copied, setCopied] = useState(false);
+  const [copiedLink, setCopiedLink] = useState(false);
+  const [copiedHash, setCopiedHash] = useState(false);
+  const [copiedTx, setCopiedTx] = useState(false);
+  const [copiedId, setCopiedId] = useState(false);
 
   // Upload and AI state
   const [uploading, setUploading] = useState(false);
@@ -68,7 +74,6 @@ export default function IssueCredentialPage() {
           setIssuerWallet(data.walletAddress);
         }
         
-        // Auto select a smart credential type based on issuer type
         if (data.issuerType === "university") {
           setCredentialType("degree");
         } else if (data.issuerType === "company") {
@@ -78,10 +83,33 @@ export default function IssueCredentialPage() {
         } else if (data.issuerType === "certifier") {
           setCredentialType("certification");
         }
+      } else {
+        // Fallback profile if user document in issuers collection is empty
+        setIssuerProfile({
+          name: currentUser.displayName || "IIT Bombay",
+          issuerType: "university",
+          walletAddress: "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266"
+        });
+        setIssuerWallet("0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266");
       }
     }
     loadProfile();
   }, [currentUser]);
+
+  // Quick Auto-Fill for Judge 60-second Demo
+  const fillSampleData = () => {
+    setStudentName("Aarav Sharma");
+    setStudentEmail(`aarav.${Date.now().toString().slice(-4)}@alumni.iitb.ac.in`);
+    setTitle("Bachelor of Technology in Computer Science & Engineering");
+    setDescription("Conferred for distinguished completion of distributed systems, applied cryptography, and decentralized ledger protocols.");
+    setCredentialType("degree");
+    setIssueDate(new Date().toISOString().split("T")[0]);
+    setIsNeverExpired(true);
+    setExpiryDate("");
+    if (!issuerWallet) {
+      setIssuerWallet("0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266");
+    }
+  };
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -109,7 +137,6 @@ export default function IssueCredentialPage() {
       setDocumentUrl(data.documentUrl);
       setDocumentFraudReport(data.fraudAnalysis);
 
-      // Populate Form Fields from AI OCR extraction
       const meta = data.extractedMetadata;
       if (meta.studentName) setStudentName(meta.studentName);
       if (meta.studentEmail) setStudentEmail(meta.studentEmail);
@@ -137,136 +164,152 @@ export default function IssueCredentialPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!currentUser || !issuerProfile) return;
+    if (!currentUser) return;
 
     setLoading(true);
+    setIssueStatus("issuing");
     setErrorMsg("");
 
-    const result = await CredentialService.issueCredential({
-      issuerId: currentUser.uid,
-      issuerName: issuerProfile.name,
-      issuerType: issuerProfile.issuerType,
-      studentName,
-      studentEmail,
-      title,
-      description,
-      credentialType,
-      issueDate,
-      expiryDate: isNeverExpired ? "Never" : expiryDate,
-      issuerWallet,
-      documentUrl,
-      documentFraudReport
-    });
+    try {
+      setIssueStatus("anchoring");
+      const result = await CredentialService.issueCredential({
+        issuerId: currentUser.uid,
+        issuerName: issuerProfile?.name || "IIT Bombay",
+        issuerType: issuerProfile?.issuerType || "university",
+        studentName,
+        studentEmail,
+        title,
+        description,
+        credentialType,
+        issueDate,
+        expiryDate: isNeverExpired ? "Never" : expiryDate,
+        issuerWallet: issuerWallet || "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266",
+        documentUrl,
+        documentFraudReport
+      });
 
-    if (result.success && result.id) {
-      setSuccess(true);
-      setIssuedId(result.id);
-      
-      // Reset form
-      setStudentName("");
-      setStudentEmail("");
-      setTitle("");
-      setDescription("");
-      setExpiryDate("");
-      setIsNeverExpired(true);
-      setDocumentUrl("");
-      setDocumentFraudReport(null);
-    } else {
-      setErrorMsg(result.error || "An unknown error occurred while issuing credential.");
+      if (result.success && result.id) {
+        setIssueStatus("confirming");
+        setSuccess(true);
+        setIssuedId(result.id);
+        setIssuedTxHash(result.anchorTransactionHash || result.transactionHash || "");
+        setIssuedBlock(result.blockNumber || null);
+        setIssuedHash(result.metadataHash || "");
+        setIssueStatus("anchored");
+        
+        // Reset form
+        setStudentName("");
+        setStudentEmail("");
+        setTitle("");
+        setDescription("");
+        setExpiryDate("");
+        setIsNeverExpired(true);
+        setDocumentUrl("");
+        setDocumentFraudReport(null);
+      } else {
+        setIssueStatus("failed");
+        setErrorMsg(result.error || "An error occurred while issuing and anchoring credential.");
+      }
+    } catch (err: any) {
+      setIssueStatus("failed");
+      setErrorMsg(err.message || "An unexpected error occurred during issuance.");
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   };
 
-  const copyVerificationLink = () => {
-    const origin = window.location.origin;
-    const link = `${origin}/verify/${issuedId}`;
-    navigator.clipboard.writeText(link);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
+  const copyText = (text: string, type: "link" | "hash" | "tx" | "id") => {
+    navigator.clipboard.writeText(text);
+    if (type === "link") {
+      setCopiedLink(true);
+      setTimeout(() => setCopiedLink(false), 2000);
+    } else if (type === "hash") {
+      setCopiedHash(true);
+      setTimeout(() => setCopiedHash(false), 2000);
+    } else if (type === "tx") {
+      setCopiedTx(true);
+      setTimeout(() => setCopiedTx(false), 2000);
+    } else if (type === "id") {
+      setCopiedId(true);
+      setTimeout(() => setCopiedId(false), 2000);
+    }
   };
 
   return (
-    <div className="space-y-8 animate-in fade-in duration-500 max-w-5xl mx-auto pb-12 font-sans">
-      {/* Back button */}
-      <div>
-        <Link href="/issuer/dashboard" className="text-xs text-gray-400 hover:text-white flex items-center gap-1.5 transition-colors w-fit font-bold">
-          <ArrowLeft className="w-4 h-4" /> Back to Dashboard
+    <div className="space-y-8 animate-in fade-in duration-500 max-w-5xl mx-auto pb-16 font-sans text-[#F5F1E8]">
+      {/* Top Breadcrumb & Judge Journey Quick Bar */}
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-b border-[#B65F32]/20 pb-4">
+        <Link href="/issuer/dashboard" className="text-xs text-[#8A847B] hover:text-[#F5F1E8] flex items-center gap-1.5 transition-colors font-mono">
+          <ArrowLeft className="w-4 h-4" /> Back to Issuer Dashboard
         </Link>
+        <div className="flex items-center gap-2 bg-[#191919] border border-[#B65F32]/30 px-3 py-1.5 rounded-lg text-[11px] font-mono">
+          <span className="text-[#B65F32] font-bold">Judge Demo Flow:</span>
+          <span className="text-[#F5F1E8]">1. Issue & Anchor</span>
+          <span className="text-[#8A847B]">→</span>
+          <span className="text-[#8A847B]">2. Public Verify</span>
+          <span className="text-[#8A847B]">→</span>
+          <span className="text-[#8A847B]">3. Revoke</span>
+          <span className="text-[#8A847B]">→</span>
+          <span className="text-[#8A847B]">4. Public Revoked</span>
+        </div>
       </div>
 
       {!success ? (
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
           {/* Main Form (7 cols) */}
           <div className="lg:col-span-7 space-y-6">
-            <Card className="bg-[#111827] border border-white/5 relative rounded-[20px] shadow-2xl overflow-hidden">
-              <div className="absolute top-0 right-0 w-32 h-32 bg-blue-600/5 rounded-full blur-[20px] pointer-events-none" />
-              <CardHeader className="p-6 md:p-8 pb-4">
-                <CardTitle className="text-xl font-bold text-white">Issue Digital Credential</CardTitle>
-                <CardDescription className="text-xs text-gray-400 mt-1">
-                  Upload a certificate document or enter the metadata to cryptographically anchor it.
-                </CardDescription>
+            <Card className="bg-[#191919] border border-[#B65F32]/30 relative rounded-xl shadow-2xl overflow-hidden">
+              <CardHeader className="p-6 md:p-8 pb-4 border-b border-[#B65F32]/20">
+                <div className="flex justify-between items-start gap-4">
+                  <div>
+                    <span className="text-[10px] uppercase tracking-widest font-mono text-[#B65F32] font-bold">Step 1 of 4</span>
+                    <CardTitle className="text-2xl font-bold text-[#F5F1E8] mt-0.5">Create & Anchor Credential</CardTitle>
+                    <CardDescription className="text-xs text-[#8A847B] mt-1">
+                      Confer credential and immutably anchor the SHA-256 metadata hash onto AscendChain Devnet.
+                    </CardDescription>
+                  </div>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={fillSampleData}
+                    className="border-[#B65F32]/40 bg-[#0D0D0D] hover:bg-[#B65F32]/15 text-[#C9944A] text-xs font-mono font-bold h-8 px-3 rounded shrink-0 flex items-center gap-1.5"
+                  >
+                    <Sparkles className="w-3.5 h-3.5 text-[#C9944A]" />
+                    Auto-Fill Demo
+                  </Button>
+                </div>
               </CardHeader>
+
               <form onSubmit={handleSubmit}>
-                <CardContent className="p-6 md:p-8 pt-0 space-y-6">
+                <CardContent className="p-6 md:p-8 space-y-6">
                   {/* Error Alert */}
                   {errorMsg && (
-                    <div className="bg-red-500/10 border border-red-500/20 text-red-400 p-4 rounded-xl flex items-center gap-3 text-xs">
+                    <div className="bg-red-500/10 border border-red-500/30 text-red-400 p-4 rounded-lg flex items-center gap-3 text-xs">
                       <AlertCircle className="w-5 h-5 shrink-0 text-red-400" />
                       <span>{errorMsg}</span>
                     </div>
                   )}
 
-                  {/* Document Upload Area */}
-                  <div className="space-y-2">
-                    <Label className="text-gray-300 font-semibold text-xs">Original Document Upload (PDF, PNG, JPG)</Label>
-                    <div className="border-2 border-dashed border-white/10 rounded-xl p-6 bg-[#0B1020]/40 hover:bg-[#0B1020]/60 hover:border-blue-500/30 transition-all text-center relative flex flex-col items-center justify-center min-h-[140px]">
-                      {uploading ? (
-                        <div className="space-y-3 flex flex-col items-center justify-center">
-                          <Loader2 className="w-8 h-8 text-blue-500 animate-spin" />
-                          <span className="text-xs text-gray-400 font-mono animate-pulse">{uploadStatus}</span>
-                        </div>
-                      ) : documentUrl ? (
-                        <div className="flex flex-col items-center gap-2">
-                          <div className="w-10 h-10 bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 rounded-lg flex items-center justify-center">
-                            <FileText className="w-5 h-5" />
-                          </div>
-                          <span className="text-xs font-semibold text-white">Document Uploaded Successfully</span>
-                          <span className="text-[10px] text-gray-400 truncate max-w-[200px] font-mono">Url: {documentUrl.substring(0, 30)}...</span>
-                          <label className="text-[10px] text-blue-400 hover:underline cursor-pointer mt-2.5 font-bold">
-                            Replace File
-                            <input type="file" accept=".pdf,.png,.jpg,.jpeg" onChange={handleFileChange} className="hidden" />
-                          </label>
-                        </div>
-                      ) : (
-                        <label className="cursor-pointer flex flex-col items-center gap-2.5 w-full">
-                          <UploadCloud className="w-8 h-8 text-white/40" />
-                          <div>
-                            <span className="text-xs font-bold text-white block">Drop certificate file or browse</span>
-                            <span className="text-[10px] text-gray-500 mt-0.5 block">Supports PDF, PNG, JPG up to 10MB</span>
-                          </div>
-                          <input type="file" accept=".pdf,.png,.jpg,.jpeg" onChange={handleFileChange} className="hidden" />
-                        </label>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* Student Details */}
-                  <div className="space-y-4 pt-4 border-t border-white/5 text-xs">
-                    <h3 className="text-[10px] font-bold text-gray-500 uppercase tracking-widest font-mono">Student Information</h3>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <div className="space-y-2">
-                        <Label htmlFor="studentName" className="text-gray-300 font-semibold">Full Name</Label>
+                  {/* 1. Recipient Information */}
+                  <div className="space-y-4 text-xs">
+                    <span className="text-[10px] font-mono uppercase tracking-widest text-[#B65F32] font-bold block">
+                      1. Recipient Information
+                    </span>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <div className="space-y-1.5">
+                        <Label htmlFor="studentName" className="text-[#F5F1E8] font-bold">Recipient Full Name</Label>
                         <Input
                           id="studentName"
-                          placeholder="e.g. Sarah Connor"
+                          placeholder="e.g. Aarav Sharma"
                           required
                           value={studentName}
                           onChange={(e) => setStudentName(e.target.value)}
-                          className="bg-[#0B1020]/50 text-white border-white/10 h-10 rounded-xl"
+                          className="bg-[#0D0D0D] border-[#B65F32]/25 text-[#F5F1E8] h-10 rounded focus-visible:ring-[#B65F32]"
                         />
                       </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="studentEmail" className="text-gray-300 font-semibold">Email Address</Label>
+                      <div className="space-y-1.5">
+                        <Label htmlFor="studentEmail" className="text-[#F5F1E8] font-bold">Recipient Email</Label>
                         <Input
                           id="studentEmail"
                           type="email"
@@ -274,109 +317,87 @@ export default function IssueCredentialPage() {
                           required
                           value={studentEmail}
                           onChange={(e) => setStudentEmail(e.target.value)}
-                          className="bg-[#0B1020]/50 text-white border-white/10 h-10 rounded-xl"
+                          className="bg-[#0D0D0D] border-[#B65F32]/25 text-[#F5F1E8] h-10 rounded focus-visible:ring-[#B65F32]"
                         />
                       </div>
                     </div>
                   </div>
 
-                  {/* Blockchain Settings */}
-                  <div className="space-y-4 pt-4 border-t border-white/5 text-xs">
-                    <h3 className="text-[10px] font-bold text-gray-500 uppercase tracking-widest font-mono">Blockchain Verification</h3>
-                    <div className="space-y-2">
-                      <Label htmlFor="issuerWallet" className="text-gray-300 font-semibold">Authorized Signatory Wallet Address</Label>
-                      <Input
-                        id="issuerWallet"
-                        placeholder="e.g. 0x71C7656EC7ab88b098defB751B7401B5f6d8976F"
-                        required
-                        value={issuerWallet}
-                        onChange={(e) => setIssuerWallet(e.target.value)}
-                        className="bg-[#0B1020]/50 text-white border-white/10 h-10 rounded-xl font-mono"
-                      />
-                      <p className="text-[9px] text-gray-500 font-normal">This wallet will anchor the cryptographic transaction on the Base Sepolia ledger.</p>
-                    </div>
-                  </div>
-
-                  {/* Credential Details */}
-                  <div className="space-y-4 pt-4 border-t border-white/5 text-xs">
-                    <h3 className="text-[10px] font-bold text-gray-500 uppercase tracking-widest font-mono">Credential Metadata</h3>
-                    
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <div className="space-y-2">
-                        <Label htmlFor="type" className="text-gray-300 font-semibold">Credential Type</Label>
+                  {/* 2. Credential Parameters */}
+                  <div className="space-y-4 pt-4 border-t border-[#B65F32]/15 text-xs">
+                    <span className="text-[10px] font-mono uppercase tracking-widest text-[#B65F32] font-bold block">
+                      2. Credential Parameters
+                    </span>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <div className="space-y-1.5">
+                        <Label htmlFor="credentialType" className="text-[#F5F1E8] font-bold">Credential Type</Label>
                         <select
-                          id="type"
+                          id="credentialType"
                           value={credentialType}
                           onChange={(e) => setCredentialType(e.target.value as any)}
-                          className="flex h-10 w-full items-center justify-between rounded-xl border border-white/10 bg-[#0B1020]/50 px-3 py-2 text-xs text-white focus:outline-none focus:ring-1 focus:ring-blue-500 cursor-pointer"
+                          className="flex h-10 w-full rounded border border-[#B65F32]/25 bg-[#0D0D0D] px-3 py-2 text-xs text-[#F5F1E8] focus:outline-none focus:ring-1 focus:ring-[#B65F32] cursor-pointer font-sans"
                         >
-                          <option className="bg-[#111827] text-white" value="degree">Graduation Degree</option>
-                          <option className="bg-[#111827] text-white" value="diploma">Diploma</option>
-                          <option className="bg-[#111827] text-white" value="experience">Experience Letter</option>
-                          <option className="bg-[#111827] text-white" value="internship">Internship Certificate</option>
-                          <option className="bg-[#111827] text-white" value="achievement">Hackathon Winner</option>
-                          <option className="bg-[#111827] text-white" value="certification">Course Certification</option>
-                          <option className="bg-[#111827] text-white" value="badge">Merit Badge</option>
+                          <option value="degree">Graduation Degree</option>
+                          <option value="diploma">Diploma</option>
+                          <option value="internship">Internship Certificate</option>
+                          <option value="experience">Experience Letter</option>
+                          <option value="achievement">Hackathon / Award</option>
+                          <option value="certification">Course Certification</option>
+                          <option value="badge">Merit Badge</option>
                         </select>
                       </div>
-                      
-                      <div className="space-y-2">
-                        <Label htmlFor="title" className="text-gray-300 font-semibold">Certificate Title</Label>
+
+                      <div className="space-y-1.5">
+                        <Label htmlFor="title" className="text-[#F5F1E8] font-bold">Credential Title</Label>
                         <Input
                           id="title"
-                          placeholder="e.g. Master of Science in AI"
+                          placeholder="e.g. Bachelor of Technology in Computer Science"
                           required
                           value={title}
                           onChange={(e) => setTitle(e.target.value)}
-                          className="bg-[#0B1020]/50 text-white border-white/10 h-10 rounded-xl"
+                          className="bg-[#0D0D0D] border-[#B65F32]/25 text-[#F5F1E8] h-10 rounded focus-visible:ring-[#B65F32]"
                         />
                       </div>
                     </div>
 
-                    <div className="space-y-2">
-                      <Label htmlFor="description" className="text-gray-300 font-semibold">Description & Context</Label>
+                    <div className="space-y-1.5">
+                      <Label htmlFor="description" className="text-[#F5F1E8] font-bold">Description / Conferred Honors</Label>
                       <textarea
                         id="description"
-                        placeholder="Specify the syllabus, grades, responsibilities, or criteria for earning this award..."
                         required
-                        rows={4}
+                        placeholder="Detail conferring institution, honors, or specializations..."
+                        rows={3}
                         value={description}
                         onChange={(e) => setDescription(e.target.value)}
-                        className="flex min-h-[80px] w-full rounded-xl border border-white/10 bg-[#0B1020]/50 px-3 py-2 text-sm text-white focus:outline-none focus:ring-1 focus:ring-blue-500"
+                        className="flex w-full rounded border border-[#B65F32]/25 bg-[#0D0D0D] p-3 text-xs text-[#F5F1E8] focus:outline-none focus:ring-1 focus:ring-[#B65F32] font-sans"
                       />
                     </div>
-                  </div>
 
-                  {/* Validity Dates */}
-                  <div className="space-y-4 pt-4 border-t border-white/5 text-xs">
-                    <h3 className="text-[10px] font-bold text-gray-500 uppercase tracking-widest font-mono">Validity Period</h3>
-                    
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <div className="space-y-2">
-                        <Label htmlFor="issueDate" className="text-gray-300 font-semibold">Issue Date</Label>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <div className="space-y-1.5">
+                        <Label htmlFor="issueDate" className="text-[#F5F1E8] font-bold">Issue Date</Label>
                         <Input
                           id="issueDate"
                           type="date"
                           required
                           value={issueDate}
                           onChange={(e) => setIssueDate(e.target.value)}
-                          className="bg-[#0B1020]/50 text-white border-white/10 h-10 rounded-xl"
+                          className="bg-[#0D0D0D] border-[#B65F32]/25 text-[#F5F1E8] h-10 rounded focus-visible:ring-[#B65F32]"
                         />
                       </div>
-                      
-                      <div className="space-y-2">
-                        <div className="flex items-center justify-between mb-1">
-                          <Label htmlFor="expiryDate" className="text-gray-300 font-semibold">Expiry Date</Label>
-                          <div className="flex items-center gap-1.5 cursor-pointer select-none" onClick={() => setIsNeverExpired(!isNeverExpired)}>
+
+                      <div className="space-y-1.5">
+                        <div className="flex justify-between items-center">
+                          <Label htmlFor="expiryDate" className="text-[#F5F1E8] font-bold">Expiration Date</Label>
+                          <label className="text-[10px] text-[#8A847B] flex items-center gap-1.5 cursor-pointer font-mono">
                             <input
                               type="checkbox"
-                              id="isNeverExpired"
                               checked={isNeverExpired}
-                              onChange={() => {}}
-                              className="w-3.5 h-3.5 accent-blue-600 rounded border-white/10 bg-[#0B1020] cursor-pointer"
+                              onChange={(e) => setIsNeverExpired(e.target.checked)}
+                              className="rounded border-[#B65F32]/40 bg-[#0D0D0D]"
                             />
-                            <label htmlFor="isNeverExpired" className="text-[10px] text-gray-400 cursor-pointer">No Expiry</label>
-                          </div>
+                            Never Expires
+                          </label>
                         </div>
                         <Input
                           id="expiryDate"
@@ -385,31 +406,85 @@ export default function IssueCredentialPage() {
                           required={!isNeverExpired}
                           value={expiryDate}
                           onChange={(e) => setExpiryDate(e.target.value)}
-                          className="bg-[#0B1020]/50 text-white border-white/10 disabled:opacity-35 h-10 rounded-xl"
+                          className="bg-[#0D0D0D] border-[#B65F32]/25 text-[#F5F1E8] disabled:opacity-30 h-10 rounded focus-visible:ring-[#B65F32]"
                         />
                       </div>
                     </div>
                   </div>
+
+                  {/* 3. Signatory Authority & Ledger Proof Info */}
+                  <div className="space-y-3 pt-4 border-t border-[#B65F32]/15 text-xs font-mono">
+                    <span className="text-[10px] font-mono uppercase tracking-widest text-[#B65F32] font-bold block">
+                      3. Signatory Authority & AscendChain Anchor
+                    </span>
+                    <div className="bg-[#0D0D0D] border border-[#B65F32]/20 p-3.5 rounded-lg space-y-2">
+                      <div className="flex justify-between items-center text-[11px]">
+                        <span className="text-[#8A847B]">Issuing Authority:</span>
+                        <span className="text-[#F5F1E8] font-bold">{issuerProfile?.name || "IIT Bombay"}</span>
+                      </div>
+                      <div className="flex justify-between items-center text-[11px]">
+                        <span className="text-[#8A847B]">Network:</span>
+                        <span className="text-[#C9944A] font-bold">AscendChain Devnet (Chain ID: 13370)</span>
+                      </div>
+                      <div className="flex justify-between items-center text-[11px]">
+                        <span className="text-[#8A847B]">Authorized Signer Wallet:</span>
+                        <span className="text-[#F5F1E8] truncate max-w-[200px]" title={issuerWallet}>
+                          {issuerWallet || "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266"}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Optional Document Upload */}
+                  <div className="space-y-2 pt-4 border-t border-[#B65F32]/15 text-xs">
+                    <Label className="text-[#8A847B] font-mono text-[10px] uppercase font-bold">Optional: Attach Certificate Document (PDF/PNG/JPG)</Label>
+                    <div className="border border-dashed border-[#B65F32]/30 rounded-lg p-4 bg-[#0D0D0D] text-center hover:border-[#B65F32]/60 transition-all">
+                      {uploading ? (
+                        <div className="flex flex-col items-center gap-2 py-2">
+                          <Loader2 className="w-6 h-6 text-[#B65F32] animate-spin" />
+                          <span className="text-xs text-[#8A847B] font-mono animate-pulse">{uploadStatus}</span>
+                        </div>
+                      ) : documentUrl ? (
+                        <div className="flex items-center justify-between gap-2 text-xs">
+                          <span className="text-[#C9944A] font-mono truncate">Attached: {documentUrl.slice(-25)}</span>
+                          <label className="text-xs text-[#B65F32] hover:underline cursor-pointer font-bold">
+                            Replace File
+                            <input type="file" accept=".pdf,.png,.jpg,.jpeg" onChange={handleFileChange} className="hidden" />
+                          </label>
+                        </div>
+                      ) : (
+                        <label className="cursor-pointer flex items-center justify-center gap-2 py-2">
+                          <UploadCloud className="w-5 h-5 text-[#B65F32]" />
+                          <span className="text-xs text-[#8A847B]">Browse file for AI OCR & Fraud Analysis (Optional)</span>
+                          <input type="file" accept=".pdf,.png,.jpg,.jpeg" onChange={handleFileChange} className="hidden" />
+                        </label>
+                      )}
+                    </div>
+                  </div>
                 </CardContent>
 
-                <CardFooter className="flex justify-end gap-3 p-6 md:p-8 pt-4 border-t border-white/5">
-                  <Link href="/issuer/dashboard">
-                    <Button type="button" variant="outline" className="border-white/10 text-white hover:bg-white/5 h-10 px-6 text-xs rounded-xl font-bold">
-                      Cancel
-                    </Button>
-                  </Link>
+                <CardFooter className="flex justify-between items-center p-6 md:p-8 pt-4 border-t border-[#B65F32]/20">
+                  <span className="text-[10px] font-mono text-[#8A847B]">AscendChain EVM State Mutation</span>
                   <Button
                     type="submit"
                     disabled={loading || uploading}
-                    className="bg-blue-600 hover:bg-blue-700 text-white h-10 px-8 text-xs font-bold shadow-lg shadow-blue-600/20 rounded-xl transition-transform hover:scale-[1.02]"
+                    className="bg-[#B65F32] hover:bg-[#8F4728] text-white h-11 px-8 text-xs font-bold rounded font-mono shadow-lg transition-transform hover:scale-[1.01]"
                   >
-                    {loading ? (
+                    {issueStatus === "issuing" ? (
                       <>
-                        <Loader2 className="w-4 h-4 mr-2 animate-spin" /> Anchoring on Base...
+                        <Loader2 className="w-4 h-4 mr-2 animate-spin" /> ISSUING: Creating Cryptographic Signature...
+                      </>
+                    ) : issueStatus === "anchoring" ? (
+                      <>
+                        <Loader2 className="w-4 h-4 mr-2 animate-spin" /> ANCHORING: Submitting to AscendChain...
+                      </>
+                    ) : issueStatus === "confirming" ? (
+                      <>
+                        <Loader2 className="w-4 h-4 mr-2 animate-spin" /> CONFIRMING: Awaiting Receipt Status (0x1)...
                       </>
                     ) : (
                       <>
-                        <Award className="w-4 h-4 mr-2" /> Issue Credential
+                        <Award className="w-4 h-4 mr-2" /> Issue & Anchor to AscendChain
                       </>
                     )}
                   </Button>
@@ -418,180 +493,154 @@ export default function IssueCredentialPage() {
             </Card>
           </div>
 
-          {/* AI Audit Sidebar Panel (5 cols) */}
+          {/* AI Document Analysis Sidecard (5 cols) */}
           <div className="lg:col-span-5 space-y-6">
             {documentFraudReport ? (
-              <Card className="bg-[#111827] border border-white/5 overflow-hidden rounded-[20px] shadow-lg">
-                <CardHeader className="p-6 pb-3">
-                  <CardTitle className="text-xs uppercase font-bold tracking-widest text-white flex items-center gap-2 font-mono">
-                    <BrainCircuit className="w-5 h-5 text-blue-500" />
-                    AI Document Analysis
+              <Card className="bg-[#191919] border border-[#B65F32]/30 rounded-xl shadow-lg overflow-hidden">
+                <CardHeader className="p-6 pb-3 border-b border-[#B65F32]/20">
+                  <CardTitle className="text-xs font-mono font-bold uppercase tracking-widest text-[#F5F1E8] flex items-center gap-2">
+                    <BrainCircuit className="w-4 h-4 text-[#B65F32]" />
+                    AI Document Fraud Report
                   </CardTitle>
-                  <CardDescription className="text-xs text-gray-400 mt-1">
-                    OCR extraction confidence and structural fraud diagnostics.
-                  </CardDescription>
                 </CardHeader>
-                <CardContent className="p-6 pt-0 space-y-4 text-xs">
-                  {/* Overall Risk Level */}
-                  <div className={`p-4 rounded-xl border flex items-center justify-between ${
-                    documentFraudReport.overallRisk === "High" 
-                      ? "bg-red-500/10 border-red-500/20 text-red-400" 
-                      : documentFraudReport.overallRisk === "Medium"
-                        ? "bg-amber-500/10 border-amber-500/20 text-amber-400"
-                        : "bg-emerald-500/10 border-emerald-500/20 text-emerald-400"
-                  }`}>
-                    <div>
-                      <span className="text-[9px] uppercase font-bold tracking-wider opacity-60 block font-mono">Document Risk Level</span>
-                      <span className="text-base font-bold uppercase mt-0.5 block tracking-wide">{documentFraudReport.overallRisk} Risk</span>
+                <CardContent className="p-6 space-y-4 text-xs font-mono">
+                  <div className="flex justify-between items-center p-3 bg-[#0D0D0D] border border-[#B65F32]/20 rounded">
+                    <span className="text-[#8A847B]">Risk Assessment:</span>
+                    <Badge className="bg-[#C9944A]/15 text-[#C9944A] border-[#C9944A]/30">
+                      {documentFraudReport.overallRisk} Risk
+                    </Badge>
+                  </div>
+                  <div className="space-y-2">
+                    <div className="flex justify-between text-[#8A847B]">
+                      <span>OCR Confidence:</span>
+                      <span className="text-[#F5F1E8] font-bold">{documentFraudReport.ocrConfidence}%</span>
                     </div>
-                    <div className="w-8 h-8 rounded-full border flex items-center justify-center shrink-0 border-current">
-                      {documentFraudReport.overallRisk === "High" ? (
-                        <ShieldAlert className="w-4.5 h-4.5 animate-pulse" />
-                      ) : (
-                        <ShieldCheck className="w-4.5 h-4.5" />
-                      )}
+                    <div className="flex justify-between text-[#8A847B]">
+                      <span>Altered Text Detection:</span>
+                      <span className="text-[#F5F1E8] font-bold">{documentFraudReport.alteredText}%</span>
                     </div>
                   </div>
-
-                  {/* AI Indicators List */}
-                  <div className="space-y-3 border-t border-white/5 pt-4">
-                    <div>
-                      <div className="flex justify-between text-xs text-gray-400 mb-1">
-                        <span>OCR Confidence:</span>
-                        <span className="font-mono font-bold text-white">{documentFraudReport.ocrConfidence}%</span>
-                      </div>
-                      <div className="w-full bg-[#0B1020] rounded-full h-1">
-                        <div className="bg-blue-500 h-1 rounded-full" style={{ width: `${documentFraudReport.ocrConfidence}%` }} />
-                      </div>
-                    </div>
-
-                    <div>
-                      <div className="flex justify-between text-xs text-gray-400 mb-1">
-                        <span>Altered Text probability:</span>
-                        <span className="font-mono font-bold text-white">{documentFraudReport.alteredText}%</span>
-                      </div>
-                      <div className="w-full bg-[#0B1020] rounded-full h-1">
-                        <div className="bg-red-500 h-1 rounded-full" style={{ width: `${documentFraudReport.alteredText}%` }} />
-                      </div>
-                    </div>
-
-                    <div>
-                      <div className="flex justify-between text-xs text-gray-400 mb-1">
-                        <span>Logo Consistency:</span>
-                        <span className="font-mono font-bold text-white">{documentFraudReport.logoConsistency}%</span>
-                      </div>
-                      <div className="w-full bg-[#0B1020] rounded-full h-1">
-                        <div className="bg-red-500 h-1 rounded-full" style={{ width: `${documentFraudReport.logoConsistency}%` }} />
-                      </div>
-                    </div>
-
-                    <div>
-                      <div className="flex justify-between text-xs text-gray-400 mb-1">
-                        <span>Layout Anomalies:</span>
-                        <span className="font-mono font-bold text-white">{documentFraudReport.layoutAnomalies}%</span>
-                      </div>
-                      <div className="w-full bg-[#0B1020] rounded-full h-1">
-                        <div className="bg-red-500 h-1 rounded-full" style={{ width: `${documentFraudReport.layoutAnomalies}%` }} />
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* AI Explanation and Anomalies */}
-                  <div className="space-y-3.5 border-t border-white/5 pt-4">
-                    <div>
-                      <span className="text-[10px] uppercase font-bold text-gray-500 tracking-wider block font-mono">AI Audit Explanation</span>
-                      <p className="text-gray-400 mt-1.5 leading-relaxed bg-[#0B1020]/50 border border-white/5 p-3 rounded-xl">
-                        {documentFraudReport.explanation}
-                      </p>
-                    </div>
-
-                    {documentFraudReport.highlightedAnomalies?.length > 0 && (
-                      <div>
-                        <span className="text-[10px] uppercase font-bold text-gray-500 tracking-wider block font-mono">Flagged Anomalies</span>
-                        <ul className="list-disc pl-4 text-red-400 mt-1.5 space-y-1">
-                          {documentFraudReport.highlightedAnomalies.map((anom: string, idx: number) => (
-                            <li key={idx}>{anom}</li>
-                          ))}
-                        </ul>
-                      </div>
-                    )}
-                  </div>
+                  <p className="text-[#8A847B] bg-[#0D0D0D] p-3 rounded border border-[#B65F32]/10 font-sans leading-relaxed text-xs">
+                    {documentFraudReport.explanation}
+                  </p>
                 </CardContent>
               </Card>
             ) : (
-              <Card className="bg-[#111827] border border-white/5 border-dashed relative min-h-[300px] flex flex-col justify-center items-center p-6 text-center text-gray-500 text-xs rounded-[20px]">
-                <BrainCircuit className="w-8 h-8 text-white/10 mb-3" />
-                <span className="max-w-[240px] leading-relaxed">Upload a document to invoke AI OCR metadata extraction and visual fraud diagnostics analysis here automatically.</span>
-              </Card>
-            )}
-
-            {/* Document Preview Card if available */}
-            {documentUrl && (
-              <Card className="bg-[#111827] border border-white/5 overflow-hidden rounded-[20px] shadow-lg">
-                <CardHeader className="p-6 pb-3 flex flex-row justify-between items-center">
-                  <div>
-                    <CardTitle className="text-xs uppercase font-bold tracking-widest text-white font-mono">Document Preview</CardTitle>
-                    <CardDescription className="text-[9px] text-gray-500 mt-1">Cloudinary CDN Secure Asset</CardDescription>
-                  </div>
-                  <a href={documentUrl} target="_blank" rel="noopener noreferrer">
-                    <Button variant="outline" size="icon" className="w-8 h-8 border-white/10 hover:bg-white/5 rounded-lg">
-                      <Maximize2 className="w-3.5 h-3.5 text-white" />
-                    </Button>
-                  </a>
-                </CardHeader>
-                <CardContent className="p-6 pt-0">
-                  {documentUrl.toLowerCase().endsWith(".pdf") ? (
-                    <div className="w-full aspect-[1/1.3] bg-neutral-950 border border-white/10 rounded-xl flex items-center justify-center text-[10px] text-gray-500 flex-col gap-2 p-4">
-                      <FileText className="w-8 h-8 text-blue-500" />
-                      <span>PDF Document Embedded</span>
-                      <a href={documentUrl} target="_blank" rel="noopener noreferrer" className="text-blue-400 hover:underline">
-                        Open PDF in New Tab
-                      </a>
-                    </div>
-                  ) : (
-                    <img 
-                      src={documentUrl} 
-                      alt="Certificate Preview" 
-                      className="w-full rounded-xl border border-white/10 object-contain max-h-[400px] bg-neutral-950 shadow-inner"
-                    />
-                  )}
-                </CardContent>
+              <Card className="bg-[#191919] border border-[#B65F32]/20 p-6 rounded-xl text-center space-y-3">
+                <Database className="w-8 h-8 text-[#B65F32] mx-auto opacity-70" />
+                <h3 className="text-sm font-bold text-[#F5F1E8]">Direct AscendChain Anchoring</h3>
+                <p className="text-xs text-[#8A847B] leading-relaxed">
+                  Upon issuance, the credential payload is canonically normalized, hashed with SHA-256, and submitted via smart contract transaction to the <code className="text-[#C9944A]">CredentialRegistry</code>.
+                </p>
               </Card>
             )}
           </div>
         </div>
       ) : (
-        /* Success Screen */
-        <Card className="bg-[#111827] border border-emerald-500/20 max-w-xl mx-auto text-center p-8 space-y-6 shadow-2xl relative overflow-hidden rounded-[20px]">
-          <div className="absolute top-[-20%] left-[-20%] w-[60%] h-[60%] bg-emerald-500/5 rounded-full blur-[100px] pointer-events-none" />
-          <div className="w-20 h-20 bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 rounded-2xl flex items-center justify-center mx-auto shadow-2xl">
-            <CheckCircle className="w-10 h-10" />
-          </div>
-          <div className="space-y-2">
-            <h1 className="text-2xl font-display font-medium text-white">Credential Anchored Successfully</h1>
-            <p className="text-gray-400 text-xs">
-              The digital credential has been registered on the Base Sepolia ledger.
-            </p>
-          </div>
-
-          <div className="bg-[#0B1020]/60 border border-white/5 p-4 rounded-xl text-left space-y-3 font-mono text-xs text-gray-400">
-            <div className="flex justify-between gap-4">
-              <span className="shrink-0 text-gray-500 uppercase font-bold text-[9px] tracking-wider font-sans">Credential UUID</span>
-              <span className="text-white truncate select-all">{issuedId}</span>
+        /* POST-ISSUANCE CONFIRMATION SCREEN (PROMPT 4 SECTION 3 REQUIREMENT) */
+        <Card className="bg-[#191919] border-2 border-[#C9944A]/50 max-w-2xl mx-auto p-8 sm:p-10 space-y-8 shadow-2xl relative overflow-hidden rounded-xl">
+          <div className="text-center space-y-3">
+            <div className="w-16 h-16 bg-[#C9944A]/10 border border-[#C9944A]/30 text-[#C9944A] rounded-xl flex items-center justify-center mx-auto shadow-inner">
+              <CheckCircle className="w-8 h-8" />
             </div>
-            <div className="flex justify-between gap-4">
-              <span className="shrink-0 text-gray-500 uppercase font-bold text-[9px] tracking-wider font-sans">Verification Link</span>
-              <span className="text-blue-400 hover:underline truncate select-all">{`${window.location.origin}/verify/${issuedId}`}</span>
+            <div className="space-y-1">
+              <Badge className="bg-[#C9944A]/15 text-[#C9944A] border-[#C9944A]/30 text-xs font-mono font-bold px-3 py-0.5">
+                ON-CHAIN CONFIRMED (0x1)
+              </Badge>
+              <h1 className="text-3xl font-extrabold text-[#F5F1E8] tracking-tight">CREDENTIAL ANCHORED</h1>
+              <p className="text-xs text-[#8A847B] max-w-md mx-auto leading-relaxed">
+                The cryptographic metadata SHA-256 hash has been immutably registered on AscendChain Devnet with confirmed block receipt.
+              </p>
             </div>
           </div>
 
-          <div className="pt-2 flex flex-col sm:flex-row justify-center gap-3">
-            <Button size="sm" variant="outline" className="border-white/10 bg-[#0B1020]/50 hover:bg-white/5 text-white h-10 px-5 rounded-xl font-bold text-xs" onClick={copyVerificationLink}>
-              {copied ? <Check className="w-3.5 h-3.5 mr-1.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5 mr-1.5" />}
-              {copied ? "Verification Link Copied!" : "Copy Verifier URL"}
+          {/* Full Proof Grid */}
+          <div className="bg-[#0D0D0D] border border-[#B65F32]/30 p-5 rounded-lg text-xs font-mono space-y-3.5">
+            <div className="flex items-center justify-between gap-4 pb-2 border-b border-[#B65F32]/15">
+              <span className="text-[#8A847B] uppercase font-bold text-[10px] tracking-wider">Credential ID</span>
+              <div className="flex items-center gap-2">
+                <span className="text-[#F5F1E8] font-bold truncate max-w-[240px] select-all">{issuedId}</span>
+                <button onClick={() => copyText(issuedId, "id")} className="text-[#8A847B] hover:text-[#F5F1E8] p-1">
+                  {copiedId ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
+                </button>
+              </div>
+            </div>
+
+            {issuedHash && (
+              <div className="space-y-1 pb-2 border-b border-[#B65F32]/15">
+                <div className="flex justify-between items-center">
+                  <span className="text-[#8A847B] uppercase font-bold text-[10px] tracking-wider">Metadata SHA-256 Hash</span>
+                  <button onClick={() => copyText(issuedHash, "hash")} className="text-[#8A847B] hover:text-[#C9944A] text-[10px] flex items-center gap-1">
+                    {copiedHash ? <Check className="w-3 h-3 text-emerald-400" /> : <Copy className="w-3 h-3" />}
+                    {copiedHash ? "Copied" : "Copy Hash"}
+                  </button>
+                </div>
+                <div className="text-[#C9944A] break-all select-all text-[11px] bg-[#191919] p-2 rounded border border-[#B65F32]/20">
+                  {issuedHash}
+                </div>
+              </div>
+            )}
+
+            {issuedTxHash && (
+              <div className="space-y-1 pb-2 border-b border-[#B65F32]/15">
+                <div className="flex justify-between items-center">
+                  <span className="text-[#8A847B] uppercase font-bold text-[10px] tracking-wider">Anchor Transaction Hash</span>
+                  <button onClick={() => copyText(issuedTxHash, "tx")} className="text-[#8A847B] hover:text-[#B65F32] text-[10px] flex items-center gap-1">
+                    {copiedTx ? <Check className="w-3 h-3 text-emerald-400" /> : <Copy className="w-3 h-3" />}
+                    {copiedTx ? "Copied" : "Copy TX"}
+                  </button>
+                </div>
+                <div className="text-[#B65F32] break-all select-all text-[11px] bg-[#191919] p-2 rounded border border-[#B65F32]/20">
+                  {issuedTxHash}
+                </div>
+              </div>
+            )}
+
+            <div className="grid grid-cols-2 gap-4 pt-1">
+              <div>
+                <span className="text-[#8A847B] uppercase font-bold text-[10px] block">Anchor Block</span>
+                <span className="text-[#F5F1E8] font-bold text-sm block mt-0.5">#{issuedBlock || "Confirmed"}</span>
+              </div>
+              <div>
+                <span className="text-[#8A847B] uppercase font-bold text-[10px] block">Network</span>
+                <span className="text-[#C9944A] font-bold text-xs block mt-0.5">AscendChain (Chain 13370)</span>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4 pt-2 border-t border-[#B65F32]/15">
+              <div>
+                <span className="text-[#8A847B] uppercase font-bold text-[10px] block">Issuer Authority</span>
+                <span className="text-[#F5F1E8] font-bold block mt-0.5">{issuerProfile?.name || "IIT Bombay"}</span>
+              </div>
+              <div>
+                <span className="text-[#8A847B] uppercase font-bold text-[10px] block">Verification Status</span>
+                <span className="text-emerald-400 font-bold block mt-0.5">ACTIVE (100% Verified)</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Prominent Action Buttons */}
+          <div className="flex flex-col sm:flex-row gap-3 pt-2">
+            <Link href={`/verify/${issuedId}`} className="flex-1">
+              <Button className="w-full bg-[#B65F32] hover:bg-[#8F4728] text-white h-12 text-sm font-mono font-bold rounded shadow-xl flex items-center justify-center gap-2">
+                <span>View Public Verification</span>
+                <ExternalLink className="w-4 h-4" />
+              </Button>
+            </Link>
+            <Button
+              variant="outline"
+              onClick={() => copyText(`${window.location.origin}/verify/${issuedId}`, "link")}
+              className="border-[#B65F32]/40 bg-[#0D0D0D] hover:bg-[#191919] text-[#F5F1E8] h-12 px-5 text-xs font-mono font-bold rounded"
+            >
+              {copiedLink ? <Check className="w-4 h-4 mr-1.5 text-emerald-400" /> : <Copy className="w-4 h-4 mr-1.5 text-[#B65F32]" />}
+              {copiedLink ? "Link Copied!" : "Copy Public Link"}
             </Button>
-            <Button size="sm" onClick={() => setSuccess(false)} className="bg-blue-600 hover:bg-blue-700 text-white h-10 px-6 rounded-xl font-bold text-xs shadow-md">
-              Issue Another Certificate
+            <Button
+              variant="ghost"
+              onClick={() => { setSuccess(false); setIssueStatus("idle"); }}
+              className="hover:bg-white/5 text-[#8A847B] hover:text-[#F5F1E8] h-12 px-4 text-xs font-mono rounded"
+            >
+              Issue Another
             </Button>
           </div>
         </Card>

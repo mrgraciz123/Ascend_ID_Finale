@@ -1,11 +1,15 @@
 /**
  * AscendID Demo Mode Configuration
- * 
- * When NEXT_PUBLIC_DEMO_MODE=true, the application uses seeded demo data
- * that is clearly labeled as DEMO MODE throughout the UI. All API calls
- * include X-Demo-Role headers and fall back to local mock data on any failure.
- * 
- * This is NOT a security bypass. It is an explicit, transparent demo configuration.
+ *
+ * SIMULATION DATA ONLY — NOT PRODUCTION DATA
+ * This file is consumed exclusively by the /demo simulation page and by the
+ * issuer/dashboard page's static demo credential display.
+ *
+ * blockchain.chainId = 13370 (AscendChain Devnet) and AscendChain contract addresses
+ * in this file align with AscendChainProvider (Chain 13370).
+ * All production credential anchoring uses AscendChainProvider (Chain 13370).
+ *
+ * DO NOT ADD real credentials or real transaction hashes to this file.
  */
 
 export const DEMO_MODE = process.env.NEXT_PUBLIC_DEMO_MODE === "true";
@@ -219,11 +223,11 @@ export const DEMO_TRUST_SCORE = {
     { id: "h2", score: 480, timestamp: new Date(Date.now() - 12 * 30 * 24 * 60 * 60 * 1000).toISOString(), explanation: "DigiLocker connected. Class 10/12 verified." },
     { id: "h3", score: 610, timestamp: new Date(Date.now() - 8 * 30 * 24 * 60 * 60 * 1000).toISOString(), explanation: "GDSC Lead credential anchored on-chain." },
     { id: "h4", score: 720, timestamp: new Date(Date.now() - 4 * 30 * 24 * 60 * 60 * 1000).toISOString(), explanation: "SIH Grand Finale win verified." },
-    { id: "h5", score: 780, timestamp: new Date(Date.now() - 2 * 30 * 24 * 60 * 60 * 1000).toISOString(), explanation: "Google internship anchored on Base Sepolia." },
+    { id: "h5", score: 780, timestamp: new Date(Date.now() - 2 * 30 * 24 * 60 * 60 * 1000).toISOString(), explanation: "Google internship anchored on AscendChain Devnet." },
     { id: "h6", score: 812, timestamp: new Date().toISOString(), explanation: "NeurIPS research publication verified." }
   ],
   contributingFactors: [
-    { label: "Verified Degree (IIT Bombay)", change: "+120 pts", description: "Official B.Tech enrollment anchored cryptographically on Base Sepolia.", type: "positive" },
+    { label: "Verified Degree (IIT Bombay)", change: "+120 pts", description: "Official B.Tech enrollment anchored cryptographically on AscendChain Devnet.", type: "positive" },
     { label: "Google Internship Verified", change: "+85 pts", description: "Verified software engineering internship at Google — on-chain record confirmed.", type: "positive" },
     { label: "SIH National Winner", change: "+70 pts", description: "Ministry of Education-verified Grand Finale win.", type: "positive" },
     { label: "DigiLocker Connected", change: "+55 pts", description: "Class 10 & 12 marksheets verified through DigiLocker integration.", type: "positive" },
@@ -260,11 +264,11 @@ export const DEMO_CREDENTIALS = [
     metadataHash: "0x7f3a91bc2e4d56f8a0123456789abcdef01234567890abcdef0123456789abcd",
     qrCodeUrl: "https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=https://ascendid.app/verify/cred-demo-iitb-btech",
     blockchain: {
-      chainId: 84532,
-      contractAddress: "0xC9a43158891282A2B1475592D5719c001986926b",
+      chainId: 13370,
+      contractAddress: "0x5FbDB2315678afecb367f032d93F642f64180aa3",
       transactionHash: "0x89e13b29ceee72df292a8fc2e87b901a4c2d8f56e3197b45a298cd71e4f3082a",
-      blockNumber: 18947231,
-      issuerWallet: "0x3C44CdDdB6a900fa2b585dd299e03d12FA4293BC",
+      blockNumber: 2546,
+      issuerWallet: "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266",
       verificationStatus: "anchored",
       anchoredAt: "2026-05-15T10:30:00Z"
     },
@@ -281,7 +285,7 @@ export const DEMO_CREDENTIALS = [
       }
     },
     auditTrail: [
-      { status: "issued", timestamp: "2026-05-15T10:30:00Z", transactionHash: "0x89e13b29ceee72df292a8fc2e87b901a4c2d8f56e3197b45a298cd71e4f3082a", details: "Credential anchored by IIT Bombay on Base Sepolia." }
+      { status: "issued", timestamp: "2026-05-15T10:30:00Z", transactionHash: "0x89e13b29ceee72df292a8fc2e87b901a4c2d8f56e3197b45a298cd71e4f3082a", details: "Credential anchored by IIT Bombay on AscendChain Devnet." }
     ],
     createdAt: { seconds: 1747299000, nanoseconds: 0 },
     updatedAt: { seconds: 1747299000, nanoseconds: 0 }
@@ -305,16 +309,16 @@ export const DEMO_CREDENTIALS = [
     metadataHash: "0x2f8d4e1a9b7c63e50987654321fedcba98765432109876543210fedcba987654",
     qrCodeUrl: "https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=https://ascendid.app/verify/cred-demo-google-intern",
     blockchain: {
-      chainId: 84532,
-      contractAddress: "0xC9a43158891282A2B1475592D5719c001986926b",
+      chainId: 13370,
+      contractAddress: "0x5FbDB2315678afecb367f032d93F642f64180aa3",
       transactionHash: "0x1a2b3c4d5e6f7890abcdef1234567890abcdef1234567890abcdef1234567890",
-      blockNumber: 18821044,
+      blockNumber: 2548,
       issuerWallet: "0x70997970C51812dc3A010C7d01b50e0d17dc79C8",
       verificationStatus: "anchored",
       anchoredAt: "2025-08-30T18:00:00Z"
     },
     auditTrail: [
-      { status: "issued", timestamp: "2025-08-30T18:00:00Z", transactionHash: "0x1a2b3c4d5e6f7890abcdef1234567890abcdef1234567890abcdef1234567890", details: "Credential anchored by Google LLC on Base Sepolia." }
+      { status: "issued", timestamp: "2025-08-30T18:00:00Z", transactionHash: "0x1a2b3c4d5e6f7890abcdef1234567890abcdef1234567890abcdef1234567890", details: "Credential anchored by Google LLC on AscendChain Devnet." }
     ],
     createdAt: { seconds: 1725026400, nanoseconds: 0 },
     updatedAt: { seconds: 1725026400, nanoseconds: 0 }
@@ -329,8 +333,8 @@ export const DEMO_RECRUITER_CANDIDATES = [
     university: "IIT Bombay",
     degree: "B.Tech — Computer Science & Engineering",
     graduationYear: "2026",
-    trustScore: 812,
-    ficoClass: "Exceptional",
+    trustScore: 820,
+    trustClass: "Exceptional",
     riskLevel: "Low",
     riskScore: 4,
     jobFit: 96,
@@ -365,8 +369,8 @@ export const DEMO_RECRUITER_CANDIDATES = [
     university: "NIT Trichy",
     degree: "B.Tech — Electronics & Communication",
     graduationYear: "2026",
-    trustScore: 738,
-    ficoClass: "Very Good",
+    trustScore: 745,
+    trustClass: "Very Good",
     riskLevel: "Low",
     riskScore: 12,
     jobFit: 87,
@@ -398,8 +402,8 @@ export const DEMO_RECRUITER_CANDIDATES = [
     university: "BITS Pilani",
     degree: "B.E. — Electronics & Communication",
     graduationYear: "2025",
-    trustScore: 620,
-    ficoClass: "Good",
+    trustScore: 680,
+    trustClass: "Good",
     riskLevel: "Medium",
     riskScore: 38,
     jobFit: 71,
@@ -431,8 +435,8 @@ export const DEMO_RECRUITER_CANDIDATES = [
     university: "Delhi University",
     degree: "B.Com — Business Administration",
     graduationYear: "2024",
-    trustScore: 498,
-    ficoClass: "Fair",
+    trustScore: 590,
+    trustClass: "Fair",
     riskLevel: "High",
     riskScore: 87,
     jobFit: 38,

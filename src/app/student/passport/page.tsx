@@ -70,7 +70,7 @@ export default function StudentPassportPage() {
       <div className="flex h-[60vh] items-center justify-center">
         <div className="flex flex-col items-center gap-3">
           <Loader2 className="w-8 h-8 text-[#B65F32] animate-spin" />
-          <span className="text-xs font-mono text-[#8A847B] uppercase tracking-widest">Constructing Digital Identity Passport...</span>
+          <span className="text-xs font-mono text-[#8A847B] uppercase tracking-widest">Constructing Digital Passport...</span>
         </div>
       </div>
     );
@@ -81,7 +81,7 @@ export default function StudentPassportPage() {
       <div className="max-w-md mx-auto my-16 text-center space-y-4 font-sans border border-white/5 p-8 rounded-2xl bg-[#111827]">
         <ShieldCheck className="w-12 h-12 text-[#B65F32] mx-auto" />
         <h2 className="text-xl font-bold text-white tracking-tight">Authentication Required</h2>
-        <p className="text-xs text-gray-400 leading-relaxed">Log in or create an account to view your W3C Digital Identity Passport.</p>
+        <p className="text-xs text-gray-400 leading-relaxed">Log in or create an account to view your Digital Passport.</p>
         <Link href="/auth/login" className="inline-block">
           <Button className="bg-[#B65F32] hover:bg-[#8F4728] text-white font-bold text-xs h-10 px-6 rounded-lg">
             Log In to Passport
@@ -108,40 +108,49 @@ export default function StudentPassportPage() {
           <div>
             <div className="flex items-center gap-2 mb-2">
               <Badge className="bg-[#B65F32]/15 text-[#B65F32] border-[#B65F32]/30 text-[10px] uppercase font-mono tracking-widest rounded-md px-2.5 py-0.5">
-                Official W3C Identity Document
+                AscendID Identity Passport
               </Badge>
-              <span className="text-xs font-mono text-[#8A847B]">Base Sepolia Ledger Anchored</span>
+              <span className="text-xs font-mono text-[#8A847B]">AscendChain Devnet Anchored</span>
             </div>
             <h1 className="text-4xl sm:text-5xl font-extrabold font-heading text-[#F5F1E8] tracking-tight">
               Institutional Digital Passport
             </h1>
             <p className="text-sm text-[#8A847B] mt-2 max-w-2xl">
-              Cryptographic identity ledger representing sovereign academic, professional, and technical proof provenance.
+              Cryptographic identity record representing academic, professional, and technical proof provenance.
             </p>
           </div>
 
           <div className="flex flex-wrap gap-3">
             <Button onClick={copyDID} variant="outline" className="border-[#B65F32]/30 bg-[#191919] text-[#F5F1E8] hover:bg-[#241814] text-xs font-mono font-bold h-10 px-4 rounded-lg">
               {copiedId ? <Check className="w-4 h-4 mr-2 text-[#C9944A]" /> : <Copy className="w-4 h-4 mr-2 text-[#B65F32]" />}
-              {copiedId ? "DID Copied" : "Copy DID"}
+              {copiedId ? "Identifier Copied" : "Copy Identifier"}
             </Button>
-            <Link href={`/verify/cred-demo-iitb-btech`} target="_blank">
-              <Button className="bg-[#B65F32] hover:bg-[#8F4728] text-white font-mono text-xs font-bold h-10 px-5 rounded-lg shadow-lg shadow-[#B65F32]/20">
-                <Share2 className="w-4 h-4 mr-2" />
-                Public Verification Link
-              </Button>
-            </Link>
+            {instCredentials.length > 0 ? (
+              <Link href={`/verify/${instCredentials[0].id}`} target="_blank">
+                <Button className="bg-[#B65F32] hover:bg-[#8F4728] text-white font-mono text-xs font-bold h-10 px-5 rounded-lg shadow-lg shadow-[#B65F32]/20">
+                  <Share2 className="w-4 h-4 mr-2" />
+                  Public Verification Link
+                </Button>
+              </Link>
+            ) : (
+              <Link href="/verify">
+                <Button variant="outline" className="border-[#B65F32]/30 bg-[#191919] text-[#8A847B] hover:text-[#F5F1E8] font-mono text-xs font-bold h-10 px-5 rounded-lg">
+                  <Share2 className="w-4 h-4 mr-2" />
+                  Verification Portal
+                </Button>
+              </Link>
+            )}
           </div>
         </div>
 
         {/* IDENTITY → PROOF → CREDENTIAL → VERIFICATION → TRUST → OPPORTUNITY PROGRESSION BAR */}
         <div className="mt-8 pt-6 border-t border-white/10 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
           {[
-            { step: "01", label: "Identity", status: "Active Sovereign DID" },
+            { step: "01", label: "Identity", status: "Active AscendID Identifier" },
             { step: "02", label: "Proof", status: `${achievements.length + 3} Vault Assets` },
             { step: "03", label: "Credential", status: `${instCredentials.length} Micro-Credentials` },
             { step: "04", label: "Verification", status: "100% Cryptographic" },
-            { step: "05", label: "Trust", status: `${totalScore} FICO Index` },
+            { step: "05", label: "Trust", status: `${totalScore} Ascend Trust Score` },
             { step: "06", label: "Opportunity", status: "9 Match Eligibility" },
           ].map((item) => (
             <div key={item.step} className="p-3 bg-[#191919] border border-[#B65F32]/20 rounded-lg flex flex-col justify-between">
@@ -184,7 +193,6 @@ export default function StudentPassportPage() {
                     {student.name.substring(0, 2).toUpperCase()}
                   </AvatarFallback>
                 </Avatar>
-                <span className="text-[10px] font-mono text-[#524E48] font-bold mt-3 uppercase tracking-wider">BIOMETRIC AUDIT: VERIFIED</span>
               </div>
 
               <div className="md:col-span-8 space-y-4">
@@ -213,7 +221,7 @@ export default function StudentPassportPage() {
                 </div>
 
                 <div className="pt-2">
-                  <span className="text-[10px] font-mono text-[#524E48] uppercase block">Decentralized Identifier (DID)</span>
+                  <span className="text-[10px] font-mono text-[#524E48] uppercase block">AscendID Identifier</span>
                   <code className="text-xs font-mono font-bold text-[#0D0D0D] bg-[#0D0D0D]/10 px-3 py-1.5 rounded block truncate mt-1">
                     did:ascendid:{student.id}
                   </code>
@@ -225,7 +233,7 @@ export default function StudentPassportPage() {
           <div className="pt-6 border-t border-[#0D0D0D]/15 flex flex-wrap justify-between items-center text-xs font-mono text-[#524E48] gap-4">
             <span className="flex items-center gap-1.5 font-bold text-[#0D0D0D]">
               <CheckCircle2 className="w-4 h-4 text-[#B65F32]" />
-              Authentic W3C Cryptographic Document
+              Authentic Verifiable Credential Document
             </span>
             <span>Issued: SEP 2026 · Valid Worldwide</span>
           </div>
@@ -244,7 +252,7 @@ export default function StudentPassportPage() {
                 {totalScore}
               </span>
               <span className="text-xs font-mono text-[#8A847B] uppercase tracking-widest mt-1 block">
-                FICO Computed Identity Score
+                Ascend Trust Score
               </span>
               <Badge className="mt-3 bg-[#C9944A]/15 text-[#C9944A] border-[#C9944A]/30 text-xs font-mono font-bold">
                 Exceptional Trust Class
@@ -261,8 +269,10 @@ export default function StudentPassportPage() {
                 <strong className="text-[#C9944A]">100% On-Chain</strong>
               </div>
               <div className="flex justify-between pb-2 border-b border-white/10">
-                <span className="text-[#8A847B]">DigiLocker Govt Link</span>
-                <strong className="text-emerald-400">Connected</strong>
+                <span className="text-[#8A847B]">DigiLocker Integration</span>
+                <strong className={student?.digiLockerRecords?.length ? "text-emerald-400" : "text-[#8A847B]"}>
+                  {student?.digiLockerRecords?.length ? "Connected" : "Demo / Sandbox"}
+                </strong>
               </div>
             </div>
           </div>
@@ -309,22 +319,31 @@ export default function StudentPassportPage() {
         {activeDossierTab === "credentials" && (
           <div className="space-y-8">
             <div className="grid grid-cols-1 gap-8">
-              {instCredentials.map((cred) => (
-                <CredentialObject
-                  key={cred.id}
-                  id={cred.id}
-                  title={cred.title || cred.credentialType}
-                  recipientName={student.name}
-                  issuerName={cred.issuer || cred.issuerName || "IIT Bombay"}
-                  issueDate={cred.issueDate || "2024-05-15"}
-                  credentialType={cred.credentialType || "Academic Degree"}
-                  status={cred.status || "verified"}
-                  txHash={cred.transactionHash}
-                  skills={cred.skills || ["Computer Science", "Systems Architecture", "Algorithms"]}
-                  scoreImpact={cred.scoreImpact || 45}
-                  isDigiLocker={cred.isDigiLocker}
-                />
-              ))}
+              {instCredentials.length > 0 ? (
+                instCredentials.map((cred) => (
+                  <CredentialObject
+                    key={cred.id}
+                    id={cred.id}
+                    title={cred.title || cred.credentialType}
+                    recipientName={student.name}
+                    issuerName={cred.issuer || cred.issuerName || "IIT Bombay"}
+                    issueDate={cred.issueDate || "2024-05-15"}
+                    credentialType={cred.credentialType || "Academic Degree"}
+                    status={cred.status || cred.verificationStatus || "verified"}
+                    txHash={cred.anchorTransactionHash || cred.blockchain?.transactionHash || cred.transactionHash}
+                    skills={cred.skills || ["Verified Identity", "Cryptographic Anchor"]}
+                    scoreImpact={cred.scoreImpact || 45}
+                    isDigiLocker={cred.isDigiLocker}
+                  />
+                ))
+              ) : (
+                <div className="p-12 text-center bg-[#191919] border border-[#B65F32]/20 rounded-2xl space-y-3">
+                  <p className="text-sm font-bold text-[#F5F1E8]">No Verifiable Credentials Issued Yet</p>
+                  <p className="text-xs text-[#8A847B]">
+                    Credentials issued by authorized institutions to your email will appear here with cryptographic AscendChain anchor proofs.
+                  </p>
+                </div>
+              )}
             </div>
           </div>
         )}

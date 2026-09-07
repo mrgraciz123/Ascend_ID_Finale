@@ -84,7 +84,7 @@ export default function CandidateFraudReport({ params }: { params: Promise<{ id:
         },
         reasons: [],
         suggestedActions: [
-          "Ensure that all credentials have digital signatures verified on Base Sepolia blockchain.",
+          "Ensure that all credentials have digital signatures verified on AscendChain blockchain.",
           "Check that the student's legal name matches the academic records."
         ],
         scannedAt: new Date().toISOString()

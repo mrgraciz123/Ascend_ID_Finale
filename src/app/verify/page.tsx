@@ -24,32 +24,11 @@ import { motion, AnimatePresence } from "framer-motion";
 
 const DEMO_CREDENTIALS = [
   { 
-    name: "Aarav Sharma", 
-    title: "B.Tech — Computer Science (IIT Bombay)", 
-    id: "cred-demo-iitb-btech", 
-    type: "valid",
-    issuer: "IIT Bombay"
-  },
-  { 
-    name: "Aarav Sharma", 
-    title: "Google Software Engineering Intern", 
-    id: "cred-demo-google-intern", 
-    type: "valid",
-    issuer: "Google LLC"
-  },
-  { 
-    name: "Rohan Varma", 
-    title: "AWS Cloud Practitioner (Expired)", 
-    id: "cred-demo-expired", 
-    type: "warning",
-    issuer: "Amazon Web Services"
-  },
-  { 
-    name: "Karan Malhotra", 
-    title: "React Developer (Revoked — Signature Mismatch)", 
-    id: "cred-demo-revoked", 
-    type: "error",
-    issuer: "Udemy (Revoked)"
+    name: "Phase 4.1 Verification Student", 
+    title: "B.S. Cryptographic Engineering", 
+    id: "2d7XJ3xzdH5kZKKfZLs6", 
+    type: "error", // The status is revoked
+    issuer: "AscendChain Phase 4.1 University"
   }
 ];
 

@@ -1,6 +1,6 @@
 "use client";
 
-import { LayoutDashboard, ShieldCheck, FileUp, TrendingUp, Sparkles, Settings, LogOut, Menu } from "lucide-react";
+import { LayoutDashboard, ShieldCheck, FileUp, TrendingUp, Sparkles, Settings, LogOut, Menu, Network } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useState, useEffect } from "react";
@@ -9,11 +9,12 @@ import { useAuth } from "@/context/AuthContext";
 import RoleSwitcher from "@/components/RoleSwitcher";
 
 const navItems = [
- { name: "Dashboard", href: "/student/dashboard", icon: LayoutDashboard },
- { name: "Digital Passport", href: "/student/passport", icon: ShieldCheck },
- { name: "Proof Vault", href: "/student/proof-vault", icon: FileUp },
- { name: "Trust Engine", href: "/student/trust-engine", icon: TrendingUp },
- { name: "Opportunity Hub", href: "/student/opportunities", icon: Sparkles },
+  { name: "Dashboard", href: "/student/dashboard", icon: LayoutDashboard },
+  { name: "Digital Passport", href: "/student/passport", icon: ShieldCheck },
+  { name: "Proof Vault", href: "/student/proof-vault", icon: FileUp },
+  { name: "Proof Graph", href: "/student/proof-graph", icon: Network },
+  { name: "Trust Engine", href: "/student/trust-engine", icon: TrendingUp },
+  { name: "Opportunity Hub", href: "/student/opportunities", icon: Sparkles },
 ];
 
 export default function StudentLayout({ children }: { children: React.ReactNode }) {

@@ -43,6 +43,7 @@
     "eslint": "^9",
     "eslint-config-next": "16.2.9",
     "hardhat": "^2.22.1",
+    "playwright": "^1.63.0",
     "tailwindcss": "^4",
     "tsx": "^4.22.4",
     "typescript": "^5"

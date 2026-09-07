@@ -260,7 +260,7 @@ export default function CandidateProfile({ params }: { params: Promise<{ id: str
                   candidate.trustScore >= 580 ? "bg-amber-500/10 text-amber-400 border-amber-500/20" :
                   "bg-red-500/10 text-red-400 border-red-500/20"
                 }`}>
-                  {candidate.ficoClass}
+                  {candidate.trustClass}
                 </Badge>
                 <span className="text-[9px] text-gray-500 mt-2 font-mono">{verifiedCount} Verified Records</span>
               </div>

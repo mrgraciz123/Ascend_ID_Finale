@@ -490,7 +490,7 @@ export default function Home() {
                 {[
                   {
                     title: "Cryptographic Soundness",
-                    detail: "Every credential is signed by the issuer's private key and anchored on Base Sepolia.",
+                    detail: "Every credential is signed by the issuer's private key and anchored on AscendChain (Chain 13370).",
                   },
                   {
                     title: "Instant Verification",
@@ -517,7 +517,7 @@ export default function Home() {
               </h3>
               <div className="space-y-5">
                 {[
-                  { label: "Ledger Integrations", value: "Base Sepolia Active", color: "text-[#C9944A] border-[#C9944A]/20 bg-[#C9944A]/5" },
+                  { label: "Ledger Integrations", value: "AscendChain Active", color: "text-[#C9944A] border-[#C9944A]/20 bg-[#C9944A]/5" },
                   { label: "Academics Import", value: "DigiLocker API Connected", color: "text-[#C9944A] border-[#C9944A]/20 bg-[#C9944A]/5" },
                   { label: "Format Standards", value: "W3C Verifiable Credentials", color: "text-[#B65F32] border-[#B65F32]/20 bg-[#B65F32]/5" },
                   { label: "Tamper Evidence", value: "SHA-256 Hashed", color: "text-[#B65F32] border-[#B65F32]/20 bg-[#B65F32]/5" },
@@ -581,7 +581,7 @@ export default function Home() {
                 <span className="flex items-center gap-1.5">
                   <span className="w-2 h-2 rounded-full bg-[#C9944A] animate-pulse" /> VERIFICATION PIPELINE
                 </span>
-                <span className="text-[10px] text-[#8A847B]/50">Base Sepolia</span>
+                <span className="text-[10px] text-[#C9944A] font-mono font-bold">AscendChain Devnet (13370)</span>
               </div>
               <div className="flex items-center gap-2 text-[#C9944A] font-bold"><span>✔</span> <span>Document Uploaded</span></div>
               <div className="flex items-center gap-2 text-[#C9944A] font-bold"><span>✔</span> <span>OCR Extraction Complete</span></div>
@@ -767,7 +767,7 @@ export default function Home() {
               {[
                 {
                   q: "How does AscendID verify academic records?",
-                  a: "AscendID connects directly to DigiLocker, a national digital document wallet, to fetch verified academic records. Once retrieved, we generate a SHA-256 hash of the normalized metadata and anchor it on the Base Sepolia blockchain ledger.",
+                  a: "AscendID connects directly to DigiLocker, a national digital document wallet, to fetch verified academic records. Once retrieved, we generate a SHA-256 hash of the normalized metadata and anchor it on the AscendChain Devnet blockchain ledger.",
                 },
                 {
                   q: "Can recruiters trust the verification status?",
@@ -851,22 +851,17 @@ export default function Home() {
               <p className="text-[10px] leading-relaxed text-[#8A847B]">
                 Trusted digital identity and credential infrastructure connecting students, institutions, recruiters and government.
               </p>
-              <a
-                href="https://sepolia.basescan.org/address/0xC9a43158891282A2B1475592D5719c001986926b"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center gap-1.5 text-[10px] text-[#C9944A] hover:text-[#E8B878] transition-colors font-bold"
-              >
+              <p className="inline-flex items-center gap-1.5 text-[10px] text-[#C9944A] font-bold font-mono">
                 <span className="w-1.5 h-1.5 rounded-full bg-[#C9944A] animate-pulse" />
-                Base Sepolia · Live Contract
-              </a>
+                AscendChain · Chain 13370
+              </p>
             </div>
             <div className="space-y-2.5">
               <h4 className="font-bold text-[#F5F1E8] text-[11px] uppercase tracking-wider">Protocol</h4>
               <ul className="space-y-1.5 text-[11px]">
                 <li><Link href="/student/trust-engine" className="hover:text-[#F5F1E8] transition-colors">Trust Engine</Link></li>
                 <li>
-                  <a href="https://sepolia.basescan.org/address/0xC9a43158891282A2B1475592D5719c001986926b" target="_blank" rel="noopener noreferrer" className="hover:text-[#F5F1E8] transition-colors">Smart Contract</a>
+                  <Link href="/verify" className="hover:text-[#F5F1E8] transition-colors">Smart Contract</Link>
                 </li>
                 <li><Link href="/verify" className="hover:text-[#F5F1E8] transition-colors">Verify Credential</Link></li>
                 <li><Link href="/demo" className="hover:text-[#F5F1E8] transition-colors">Auto Simulation</Link></li>
@@ -892,7 +887,7 @@ export default function Home() {
           </div>
           <div className="pt-8 flex flex-col sm:flex-row items-center justify-between gap-4">
             <div className="text-[10px]">
-              © {new Date().getFullYear()} AscendID. Professional Identity Infrastructure. Powered by Base Sepolia &amp; Google Gemini.
+              © {new Date().getFullYear()} AscendID. Professional Identity Infrastructure. Powered by AscendChain &amp; Google Gemini.
             </div>
             <div className="flex items-center gap-1.5">
               <span className="w-1.5 h-1.5 rounded-full bg-[#C9944A] animate-pulse" />

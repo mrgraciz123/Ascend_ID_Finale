@@ -610,7 +610,7 @@ Respond ONLY with a valid JSON array in this exact format (no markdown blocks, n
         reason += `Fits your location preference (${studentProfile.location}). `;
       }
       if (verificationBoost > 0) {
-        reason += `Your score received a boost from cryptographically verified credentials on Base Sepolia.`;
+        reason += `Your score received a boost from cryptographically verified credentials on AscendChain.`;
       } else {
         reason += `Add verified digital credentials to unlock high-trust boosts.`;
       }

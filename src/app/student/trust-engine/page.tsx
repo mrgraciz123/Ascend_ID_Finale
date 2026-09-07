@@ -42,7 +42,7 @@ export default function TrustEnginePage() {
         total: 300,
         factors: {},
         history: [],
-        explanation: "Base reputation level. Link credentials to boost your FICO score.",
+        explanation: "Base reputation level. Link credentials to build your Ascend Trust Score.",
         statusMeta: { bg: "bg-blue-500/10", border: "border-blue-500/20", color: "text-blue-400", label: "Initial" }
       });
       setLoading(false);
@@ -79,15 +79,15 @@ export default function TrustEnginePage() {
   const explanation = scoreData?.explanation || "Identity reputation calculated from verified credentials.";
   const statusMeta = scoreData?.statusMeta || { bg: "bg-blue-500/10", border: "border-blue-500/20", color: "text-blue-400", label: "Initial" };
   const improvements: Array<{ title: string; desc: string; points: string }> = scoreData?.improvements || [
-    { title: "Anchor Degree Credential", desc: "Ensure your primary degree is anchored on Base Sepolia blockchain.", points: "+80" },
-    { title: "Connect DigiLocker Sync", desc: "Sync Class 10/12 marksheets via DigiLocker for biometric identity confidence.", points: "+40" }
+    { title: "Anchor Degree Credential", desc: "Ensure your primary degree is anchored on AscendChain blockchain.", points: "+80" },
+    { title: "Connect DigiLocker Sync", desc: "Sync Class 10/12 marksheets via DigiLocker for additional credential evidence.", points: "+40" }
   ];
 
   const trustEvidence = [
-    { title: "B.Tech Computer Science Degree", source: "IIT Bombay (Verified Authority Node)", impact: "+120 FICO", status: "On-Chain Anchor #btech-01" },
-    { title: "Software Engineering Internship", source: "Google LLC (Attested Employer)", impact: "+85 FICO", status: "Verified Certificate #goog-92" },
-    { title: "DigiLocker Government Aadhaar Link", source: "MeitY / Govt of India", impact: "+65 FICO", status: "Biometric Identity Synced" },
-    { title: "National AI Identity Hackathon (1st)", source: "MeitY Competition", impact: "+45 FICO", status: "Public Ledger Provenance" }
+    { title: "B.Tech Computer Science Degree", source: "IIT Bombay (Verified Authority Node)", impact: "+120", status: "On-Chain Anchor #btech-01" },
+    { title: "Software Engineering Internship", source: "Google LLC (Attested Employer)", impact: "+85", status: "Verified Certificate #goog-92" },
+    { title: "DigiLocker Government Aadhaar Link", source: "MeitY / Govt of India", impact: "+65", status: "Government record synced" },
+    { title: "National AI Identity Hackathon (1st)", source: "MeitY Competition", impact: "+45", status: "Public Ledger Provenance" }
   ];
 
   const factorList = [
@@ -133,8 +133,8 @@ export default function TrustEnginePage() {
       weight: "12%",
       icon: ShieldCheck,
       color: "text-cyan-400",
-      description: "Calculates the cryptographic strength of verification logs (Base Sepolia blockchain anchoring and DigiLocker integrations rank highest).",
-      action: "Ensure your issuers anchor certificates directly to Base Sepolia ledger for maximum confidence."
+      description: "Calculates the cryptographic strength of verification logs (AscendChain blockchain anchoring and DigiLocker integrations rank highest).",
+      action: "Ensure your issuers anchor certificates directly to AscendChain ledger for maximum confidence."
     },
     {
       label: "Open Source Activity",
@@ -225,7 +225,7 @@ export default function TrustEnginePage() {
             <Badge className="bg-[#B65F32]/15 text-[#B65F32] border-[#B65F32]/30 text-[10px] uppercase font-mono tracking-widest px-2.5 py-0.5">
               Computed Identity Signal
             </Badge>
-            <span className="text-xs font-mono text-[#8A847B]">Deterministic FICO Scoring Engine</span>
+            <span className="text-xs font-mono text-[#8A847B]">Deterministic Ascend Trust Scoring Engine</span>
           </div>
           <h1 className="text-4xl font-extrabold font-heading text-[#F5F1E8] tracking-tight">
             AscendID Trust Engine
@@ -245,7 +245,7 @@ export default function TrustEnginePage() {
       {/* Main Score and Sparkline Row */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
         
-        {/* Radial FICO Gauge */}
+        {/* Radial Trust Gauge */}
         <Card className="surface-panel flex flex-col items-center justify-center p-8 relative overflow-hidden h-[340px]">
           <div className="absolute top-0 inset-x-0 h-px bg-gradient-to-r from-transparent via-white/10 to-transparent" />
           
@@ -554,7 +554,7 @@ export default function TrustEnginePage() {
               <div className="bg-neutral-950/60 border border-white/5 p-3 rounded-xl space-y-2 text-[9px] font-mono text-muted-foreground">
                 <div className="flex justify-between">
                   <span>Ledger Type:</span>
-                  <span className="text-white">Base Sepolia Smart Registry</span>
+                  <span className="text-white">AscendChain Smart Registry</span>
                 </div>
                 <div className="flex justify-between">
                   <span>Signatory Wallet:</span>
